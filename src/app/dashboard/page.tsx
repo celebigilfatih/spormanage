@@ -1,0 +1,352 @@
+'use client'
+
+import { useAuth } from '@/contexts/AuthContext'
+import { useRouter } from 'next/navigation'
+import { UserRole } from '@/types'
+import InAppNotifications from '@/components/InAppNotifications'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { 
+  Users, 
+  CreditCard, 
+  AlertTriangle, 
+  Calendar,
+  UserPlus,
+  FileText,
+  GraduationCap,
+  TrendingUp,
+  Settings,
+  Trophy,
+  Target,
+  BookOpen,
+  DollarSign,
+  Activity
+} from 'lucide-react'
+
+export default function Dashboard() {
+  const { user, logout, isLoading } = useAuth()
+  const router = useRouter()
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <div className="text-lg font-medium text-gray-700">Yükleniyor...</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    router.push('/login')
+    return null
+  }
+
+  const handleLogout = async () => {
+    await logout()
+    router.push('/login')
+  }
+
+  const getRoleDisplayName = (role: UserRole) => {
+    switch (role) {
+      case UserRole.ADMIN:
+        return 'Yönetici'
+      case UserRole.ACCOUNTING:
+        return 'Muhasebe'
+      case UserRole.TRAINER:
+        return 'Antrenör'
+      case UserRole.SECRETARY:
+        return 'Sekreter'
+      default:
+        return role
+    }
+  }
+
+  const quickActions = [
+    {
+      title: 'Öğrenci Yönetimi',
+      description: 'Öğrenci ekle ve bilgilerini yönet',
+      icon: Users,
+      color: 'bg-blue-500 hover:bg-blue-600',
+      route: '/students'
+    },
+    {
+      title: 'Ödeme İşlemleri',
+      description: 'Aidatları takip et ve ödemeleri kaydet',
+      icon: CreditCard,
+      color: 'bg-green-500 hover:bg-green-600',
+      route: '/payments'
+    },
+    {
+      title: 'Öğrenci Notları',
+      description: 'Öğrenci notları ve iletişim kayıtları',
+      icon: FileText,
+      color: 'bg-purple-500 hover:bg-purple-600',
+      route: '/notes'
+    },
+    {
+      title: 'Antrenman Yönetimi',
+      description: 'Antrenmanları planla ve yoklama al',
+      icon: Activity,
+      color: 'bg-orange-500 hover:bg-orange-600',
+      route: '/trainings'
+    },
+    {
+      title: 'Raporlar',
+      description: 'Detaylı analiz ve raporları görüntüle',
+      icon: TrendingUp,
+      color: 'bg-indigo-500 hover:bg-indigo-600',
+      route: '/reports'
+    },
+    {
+      title: 'Bildirimler',
+      description: 'SMS ve e-posta bildirimleri yönet',
+      icon: Target,
+      color: 'bg-pink-500 hover:bg-pink-600',
+      route: '/notifications'
+    }
+  ]
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo and Title */}
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg">
+                <Trophy className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">
+                  Futbol Okulu
+                </h1>
+                <p className="text-sm text-gray-500">Yönetim Sistemi</p>
+              </div>
+            </div>
+
+            {/* Navigation */}
+            <nav className="hidden lg:flex space-x-1">
+              {[
+                { name: 'Öğrenciler', route: '/students', icon: Users },
+                { name: 'Ödemeler', route: '/payments', icon: CreditCard },
+                { name: 'Antrenmanlar', route: '/trainings', icon: Activity },
+                { name: 'Raporlar', route: '/reports', icon: TrendingUp },
+                { name: 'Ayarlar', route: '/settings', icon: Settings }
+              ].map((item) => {
+                const Icon = item.icon
+                return (
+                  <button
+                    key={item.name}
+                    onClick={() => router.push(item.route)}
+                    className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span>{item.name}</span>
+                  </button>
+                )
+              })}
+            </nav>
+
+            {/* User Menu */}
+            <div className="flex items-center space-x-4">
+              <InAppNotifications />
+              <div className="hidden sm:flex items-center space-x-3">
+                <div className="text-right">
+                  <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                  <p className="text-xs text-gray-500">{getRoleDisplayName(user.role as UserRole)}</p>
+                </div>
+                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm font-medium">
+                    {user.name.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              </div>
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                size="sm"
+                className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+              >
+                Çıkış
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Welcome Section */}
+        <div className="mb-8">
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-8 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-3xl font-bold mb-2">
+                  Hoş Geldiniz, {user.name}!
+                </h2>
+                <p className="text-blue-100 text-lg">
+                  Futbol okulu yönetim sisteminize başarıyla giriş yaptınız.
+                </p>
+              </div>
+              <div className="hidden md:block">
+                <div className="w-24 h-24 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                  <GraduationCap className="w-12 h-12 text-white" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                Toplam Öğrenci
+              </CardTitle>
+              <Users className="h-5 w-5 text-blue-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-gray-900">-</div>
+              <p className="text-xs text-gray-500 mt-1">
+                Aktif kayıtlı öğrenci sayısı
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                Bu Ay Tahsilat
+              </CardTitle>
+              <DollarSign className="h-5 w-5 text-green-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-gray-900">-</div>
+              <p className="text-xs text-gray-500 mt-1">
+                Aylık gelir toplamı
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                Bekleyen Ödemeler
+              </CardTitle>
+              <AlertTriangle className="h-5 w-5 text-orange-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-gray-900">-</div>
+              <p className="text-xs text-gray-500 mt-1">
+                Geciken ödeme sayısı
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                Bu Hafta Devamsızlık
+              </CardTitle>
+              <Calendar className="h-5 w-5 text-red-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-gray-900">-</div>
+              <p className="text-xs text-gray-500 mt-1">
+                Haftalık devamsızlık oranı
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="mb-8">
+          <h3 className="text-2xl font-bold text-gray-900 mb-6">Hızlı İşlemler</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {quickActions.map((action, index) => {
+              const Icon = action.icon
+              return (
+                <Card 
+                  key={index} 
+                  className="border-0 shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer group"
+                  onClick={() => router.push(action.route)}
+                >
+                  <CardHeader>
+                    <div className="flex items-center space-x-4">
+                      <div className={`p-3 rounded-lg ${action.color} transition-colors`}>
+                        <Icon className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                          {action.title}
+                        </CardTitle>
+                        <CardDescription className="text-gray-600">
+                          {action.description}
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                </Card>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Recent Activity */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="border-0 shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <BookOpen className="w-5 h-5 text-blue-500" />
+                <span>Son Aktiviteler</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900">Sistem başarıyla kuruldu</p>
+                    <p className="text-xs text-gray-500">Tüm modüller aktif</p>
+                  </div>
+                </div>
+                <div className="text-center py-4">
+                  <p className="text-sm text-gray-500">Daha fazla aktivite için modülleri kullanmaya başlayın</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Target className="w-5 h-5 text-green-500" />
+                <span>Sistem Durumu</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-900">Veritabanı</span>
+                  <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Aktif</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-900">Bildirim Sistemi</span>
+                  <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Aktif</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-900">Yedekleme</span>
+                  <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Hazır</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+    </div>
+  )
+}

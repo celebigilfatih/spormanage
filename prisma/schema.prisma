@@ -1,0 +1,300 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  password    String
+  name        String
+  phone       String?
+  role        UserRole @default(SECRETARY)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  createdStudents     Student[]     @relation("StudentCreator")
+  createdPayments     Payment[]     @relation("PaymentCreator")
+  createdNotes        Note[]        @relation("NoteCreator")
+  createdAttendances  Attendance[]  @relation("AttendanceCreator")
+  sentNotifications   Notification[] @relation("NotificationSender")
+
+  @@map("users")
+}
+
+model Student {
+  id            String      @id @default(cuid())
+  firstName     String
+  lastName      String
+  phone         String?
+  birthDate     DateTime?
+  groupId       String?
+  isActive      Boolean     @default(true)
+  enrollmentDate DateTime   @default(now())
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  createdById   String
+  
+  // Relations
+  group         Group?      @relation(fields: [groupId], references: [id])
+  createdBy     User        @relation("StudentCreator", fields: [createdById], references: [id])
+  parents       Parent[]    @relation("StudentParents")
+  payments      Payment[]
+  notes         Note[]
+  attendances   Attendance[]
+  notifications Notification[]
+  groupHistories GroupHistory[]
+  
+  @@map("students")
+}
+
+model Parent {
+  id            String   @id @default(cuid())
+  firstName     String
+  lastName      String
+  phone         String
+  email         String?
+  address       String?
+  relationship  String   // anne, baba, abla, etc.
+  isEmergency   Boolean  @default(false)
+  isPrimary     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  students      Student[] @relation("StudentParents")
+  
+  @@map("parents")
+}
+
+model Group {
+  id          String    @id @default(cuid())
+  name        String    @unique // U10, U12, Başlangıç, İleri
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relations
+  students    Student[]
+  feeTypes    FeeType[]
+  trainings   Training[]
+  groupHistories GroupHistory[]
+  
+  @@map("groups")
+}
+
+model GroupHistory {
+  id          String   @id @default(cuid())
+  studentId   String
+  groupId     String
+  startDate   DateTime @default(now())
+  endDate     DateTime?
+  reason      String?
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  student     Student  @relation(fields: [studentId], references: [id])
+  group       Group    @relation(fields: [groupId], references: [id])
+  
+  @@map("group_histories")
+}
+
+model FeeType {
+  id          String     @id @default(cuid())
+  name        String     // Aylık Aidat, Dönem Ücreti, Kayıt Ücreti
+  amount      Float
+  period      FeePeriod  @default(MONTHLY)
+  groupId     String?
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  
+  // Relations
+  group       Group?     @relation(fields: [groupId], references: [id])
+  payments    Payment[]
+  
+  @@map("fee_types")
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  studentId       String
+  feeTypeId       String
+  amount          Float
+  dueDate         DateTime
+  paidDate        DateTime?
+  paidAmount      Float?
+  paymentMethod   PaymentMethod?
+  status          PaymentStatus @default(PENDING)
+  referenceNumber String?
+  notes           String?
+  receiptUrl      String?       // PDF makbuz URL'i
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  createdById     String
+  
+  // Relations
+  student         Student       @relation(fields: [studentId], references: [id])
+  feeType         FeeType       @relation(fields: [feeTypeId], references: [id])
+  createdBy       User          @relation("PaymentCreator", fields: [createdById], references: [id])
+  
+  @@map("payments")
+}
+
+model Note {
+  id          String    @id @default(cuid())
+  studentId   String
+  title       String
+  content     String
+  type        NoteType  @default(GENERAL)
+  isPinned    Boolean   @default(false)
+  isImportant Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  createdById String
+  
+  // Relations
+  student     Student   @relation(fields: [studentId], references: [id])
+  createdBy   User      @relation("NoteCreator", fields: [createdById], references: [id])
+  
+  @@map("notes")
+}
+
+model Training {
+  id          String   @id @default(cuid())
+  groupId     String
+  name        String
+  description String?
+  date        DateTime
+  startTime   DateTime
+  endTime     DateTime
+  location    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  group       Group    @relation(fields: [groupId], references: [id])
+  attendances Attendance[]
+  
+  @@map("trainings")
+}
+
+model Attendance {
+  id          String           @id @default(cuid())
+  studentId   String
+  trainingId  String
+  status      AttendanceStatus @default(PRESENT)
+  notes       String?
+  excuseReason String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  createdById String
+  
+  // Relations
+  student     Student   @relation(fields: [studentId], references: [id])
+  training    Training  @relation(fields: [trainingId], references: [id])
+  createdBy   User      @relation("AttendanceCreator", fields: [createdById], references: [id])
+  
+  @@unique([studentId, trainingId])
+  @@map("attendances")
+}
+
+model Notification {
+  id          String             @id @default(cuid())
+  studentId   String?
+  title       String
+  message     String
+  type        NotificationType
+  method      NotificationMethod
+  status      NotificationStatus @default(PENDING)
+  scheduledAt DateTime?
+  sentAt      DateTime?
+  recipientEmail String?
+  recipientPhone String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  createdById String
+  
+  // Relations
+  student     Student?  @relation(fields: [studentId], references: [id])
+  createdBy   User      @relation("NotificationSender", fields: [createdById], references: [id])
+  
+  @@map("notifications")
+}
+
+// Enums
+enum UserRole {
+  ADMIN
+  ACCOUNTING
+  TRAINER
+  SECRETARY
+}
+
+enum FeePeriod {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+  ONE_TIME
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CREDIT_CARD
+  CHEQUE
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum NoteType {
+  GENERAL
+  HEALTH
+  BEHAVIOR
+  PAYMENT
+  ACADEMIC
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  EXCUSED
+  LATE
+}
+
+enum NotificationType {
+  PAYMENT_REMINDER
+  PAYMENT_OVERDUE
+  ATTENDANCE_REMINDER
+  GENERAL_ANNOUNCEMENT
+  TRAINING_CANCELLED
+}
+
+enum NotificationMethod {
+  EMAIL
+  SMS
+  IN_APP
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}
