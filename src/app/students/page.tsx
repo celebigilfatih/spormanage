@@ -6,7 +6,8 @@ import { StudentRegistrationForm } from '@/components/forms/StudentRegistrationF
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Plus, Search, Users, Phone, Mail, Calendar, MapPin } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Plus, Search, Users, Phone, Mail, Calendar, MapPin, Eye, Edit2 } from 'lucide-react'
 import { Student, Group, StudentFormData, UserRole } from '@/types'
 import { AuthService } from '@/lib/auth'
 
@@ -16,6 +17,9 @@ export default function StudentsPage() {
   const [groups, setGroups] = useState<Group[]>([])
   const [loading, setLoading] = useState(true)
   const [showRegistrationForm, setShowRegistrationForm] = useState(false)
+  const [showDetailModal, setShowDetailModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   
   // Filters
@@ -96,6 +100,45 @@ export default function StudentsPage() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleStudentEdit = async (data: StudentFormData) => {
+    if (!selectedStudent) return
+    
+    try {
+      setIsSubmitting(true)
+      const response = await fetch(`/api/students/${selectedStudent.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+
+      if (response.ok) {
+        setShowEditModal(false)
+        setSelectedStudent(null)
+        fetchStudents() // Refresh the list
+        // TODO: Show success toast
+      } else {
+        const error = await response.json()
+        // TODO: Show error toast
+        console.error('Edit failed:', error.error)
+      }
+    } catch (error) {
+      console.error('Edit failed:', error)
+      // TODO: Show error toast
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleViewDetails = (student: Student) => {
+    setSelectedStudent(student)
+    setShowDetailModal(true)
+  }
+
+  const handleEditStudent = (student: Student) => {
+    setSelectedStudent(student)
+    setShowEditModal(true)
   }
 
   const handleSearch = (e: React.FormEvent) => {
@@ -345,11 +388,21 @@ export default function StudentsPage() {
                     </div>
 
                     <div className="flex space-x-2">
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleViewDetails(student)}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
                         Detayları Gör
                       </Button>
                       {canManageStudents && (
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleEditStudent(student)}
+                        >
+                          <Edit2 className="h-4 w-4 mr-1" />
                           Düzenle
                         </Button>
                       )}
@@ -400,6 +453,124 @@ export default function StudentsPage() {
           )}
         </div>
       </div>
+
+      {/* Student Detail Modal */}
+      <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedStudent?.firstName} {selectedStudent?.lastName} - Detaylar
+            </DialogTitle>
+          </DialogHeader>
+          {selectedStudent && (
+            <div className="space-y-6">
+              {/* Student Basic Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Öğrenci Bilgileri</h3>
+                  <div className="space-y-2">
+                    <div><span className="font-medium">Ad Soyad:</span> {selectedStudent.firstName} {selectedStudent.lastName}</div>
+                    {selectedStudent.phone && <div><span className="font-medium">Telefon:</span> {selectedStudent.phone}</div>}
+                    {selectedStudent.birthDate && (
+                      <div><span className="font-medium">Doğum Tarihi:</span> {new Date(selectedStudent.birthDate).toLocaleDateString('tr-TR')}</div>
+                    )}
+                    <div><span className="font-medium">Kayıt Tarihi:</span> {new Date(selectedStudent.enrollmentDate).toLocaleDateString('tr-TR')}</div>
+                    <div><span className="font-medium">Durum:</span> 
+                      <span className={`ml-2 px-2 py-1 rounded-full text-xs ${
+                        selectedStudent.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      }`}>
+                        {selectedStudent.isActive ? 'Aktif' : 'Pasif'}
+                      </span>
+                    </div>
+                    {selectedStudent.group && (
+                      <div><span className="font-medium">Grup:</span> {selectedStudent.group.name}</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Parent Info */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Veli Bilgileri</h3>
+                  {selectedStudent.parents && selectedStudent.parents.length > 0 ? (
+                    <div className="space-y-4">
+                      {selectedStudent.parents.map((parent, index) => (
+                        <div key={index} className="border border-gray-200 rounded-lg p-3">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <span className="font-medium">{parent.firstName} {parent.lastName}</span>
+                            {parent.isPrimary && (
+                              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Ana İletişim</span>
+                            )}
+                            {parent.isEmergency && (
+                              <span className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Acil Durum</span>
+                            )}
+                          </div>
+                          <div className="space-y-1 text-sm text-gray-600">
+                            <div>Yakınlık: {parent.relationship}</div>
+                            <div>Telefon: {parent.phone}</div>
+                            {parent.email && <div>E-posta: {parent.email}</div>}
+                            {parent.address && <div>Adres: {parent.address}</div>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-gray-500">Veli bilgisi bulunamadı</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Statistics */}
+              {selectedStudent._count && (
+                <div className="border-t pt-4">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">İstatistikler</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="text-center p-4 bg-blue-50 rounded-lg">
+                      <div className="text-2xl font-bold text-blue-600">{selectedStudent._count.payments}</div>
+                      <div className="text-sm text-gray-600">Ödemeler</div>
+                    </div>
+                    <div className="text-center p-4 bg-green-50 rounded-lg">
+                      <div className="text-2xl font-bold text-green-600">{selectedStudent._count.notes}</div>
+                      <div className="text-sm text-gray-600">Notlar</div>
+                    </div>
+                    <div className="text-center p-4 bg-yellow-50 rounded-lg">
+                      <div className="text-2xl font-bold text-yellow-600">{selectedStudent._count.attendances}</div>
+                      <div className="text-sm text-gray-600">Devam</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Student Edit Modal */}
+      <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedStudent?.firstName} {selectedStudent?.lastName} - Düzenle
+            </DialogTitle>
+          </DialogHeader>
+          {selectedStudent && (
+            <div className="p-4">
+              <div className="text-center text-gray-600">
+                <p className="mb-4">Öğrenci düzenleme özelliği geliştiriliyor.</p>
+                <p>Şimdilik öğrenci detaylarını görüntüleyebilirsiniz.</p>
+                <Button 
+                  onClick={() => {
+                    setShowEditModal(false)
+                    setSelectedStudent(null)
+                  }}
+                  className="mt-4"
+                >
+                  Tamam
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

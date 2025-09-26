@@ -79,6 +79,90 @@ export async function GET(
   }
 }
 
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const user = await getCurrentUser(request)
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    if (!AuthService.canManageStudents(user.role as any)) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions' },
+        { status: 403 }
+      )
+    }
+
+    const groupId = params.id
+    const { name, description } = await request.json()
+
+    if (!name) {
+      return NextResponse.json(
+        { error: 'Group name is required' },
+        { status: 400 }
+      )
+    }
+
+    const group = await prisma.group.findUnique({
+      where: { id: groupId }
+    })
+
+    if (!group) {
+      return NextResponse.json(
+        { error: 'Group not found' },
+        { status: 404 }
+      )
+    }
+
+    // Check for duplicate name (excluding current group)
+    const existingGroup = await prisma.group.findFirst({
+      where: {
+        name,
+        id: { not: groupId }
+      }
+    })
+
+    if (existingGroup) {
+      return NextResponse.json(
+        { error: 'Group name already exists' },
+        { status: 400 }
+      )
+    }
+
+    const updatedGroup = await prisma.group.update({
+      where: { id: groupId },
+      data: {
+        name,
+        description: description || null,
+      },
+      include: {
+        students: {
+          where: { isActive: true }
+        },
+        _count: {
+          select: {
+            students: true
+          }
+        }
+      }
+    })
+
+    return NextResponse.json(updatedGroup)
+  } catch (error) {
+    console.error('Failed to update group:', error)
+    return NextResponse.json(
+      { error: 'Failed to update group' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -137,6 +221,69 @@ export async function PATCH(
     console.error('Failed to update group:', error)
     return NextResponse.json(
       { error: 'Failed to update group' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const user = await getCurrentUser(request)
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    if (!AuthService.canManageStudents(user.role as any)) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions' },
+        { status: 403 }
+      )
+    }
+
+    const groupId = params.id
+
+    const group = await prisma.group.findUnique({
+      where: { id: groupId },
+      include: {
+        _count: {
+          select: {
+            students: true
+          }
+        }
+      }
+    })
+
+    if (!group) {
+      return NextResponse.json(
+        { error: 'Group not found' },
+        { status: 404 }
+      )
+    }
+
+    // Remove students from group before deleting
+    if (group._count.students > 0) {
+      await prisma.student.updateMany({
+        where: { groupId },
+        data: { groupId: null }
+      })
+    }
+
+    // Delete the group
+    await prisma.group.delete({
+      where: { id: groupId }
+    })
+
+    return NextResponse.json({ message: 'Group deleted successfully' })
+  } catch (error) {
+    console.error('Failed to delete group:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete group' },
       { status: 500 }
     )
   }

@@ -10,6 +10,7 @@ import {
   Plus, 
   Users, 
   Edit, 
+  Trash2,
   ArrowRight,
   Calendar,
   UserCheck,
@@ -32,8 +33,10 @@ export default function GroupsPage() {
   const [selectedGroup, setSelectedGroup] = useState<GroupWithStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const [showEditForm, setShowEditForm] = useState(false)
   const [showTransferForm, setShowTransferForm] = useState(false)
   const [transferStudent, setTransferStudent] = useState<Student | null>(null)
+  const [editingGroup, setEditingGroup] = useState<GroupWithStats | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Form states
@@ -83,30 +86,65 @@ export default function GroupsPage() {
     }
   }
 
-  const handleCreateGroup = async (e: React.FormEvent) => {
+  const handleEditGroup = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!groupForm.name.trim()) return
+    if (!groupForm.name.trim() || !editingGroup) return
 
     try {
       setIsSubmitting(true)
-      const response = await fetch('/api/groups', {
-        method: 'POST',
+      const response = await fetch(`/api/groups/${editingGroup.id}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(groupForm),
       })
 
       if (response.ok) {
-        setShowCreateForm(false)
+        setShowEditForm(false)
+        setEditingGroup(null)
         setGroupForm({ name: '', description: '' })
         fetchGroups()
         // TODO: Show success toast
       } else {
         const error = await response.json()
-        console.error('Group creation failed:', error.error)
+        console.error('Group edit failed:', error.error)
         // TODO: Show error toast
       }
     } catch (error) {
-      console.error('Group creation failed:', error)
+      console.error('Group edit failed:', error)
+      // TODO: Show error toast
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDeleteGroup = async (group: GroupWithStats) => {
+    const hasStudents = group._count?.students && group._count.students > 0
+    
+    const confirmMessage = hasStudents 
+      ? `"${group.name}" grubunda ${group._count?.students} öğrenci var. Bu grubu silmek istediğinizden emin misiniz? Öğrenciler gruptan çıkarılacak.`
+      : `"${group.name}" grubunu silmek istediğinizden emin misiniz?`
+    
+    if (!confirm(confirmMessage)) return
+
+    try {
+      setIsSubmitting(true)
+      const response = await fetch(`/api/groups/${group.id}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        fetchGroups()
+        if (selectedGroup?.id === group.id) {
+          setSelectedGroup(null)
+        }
+        // TODO: Show success toast
+      } else {
+        const error = await response.json()
+        console.error('Group deletion failed:', error.error)
+        // TODO: Show error toast
+      }
+    } catch (error) {
+      console.error('Group deletion failed:', error)
       // TODO: Show error toast
     } finally {
       setIsSubmitting(false)
@@ -145,6 +183,45 @@ export default function GroupsPage() {
       }
     } catch (error) {
       console.error('Student transfer failed:', error)
+      // TODO: Show error toast
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const openEditForm = (group: GroupWithStats) => {
+    setEditingGroup(group)
+    setGroupForm({
+      name: group.name,
+      description: group.description || ''
+    })
+    setShowEditForm(true)
+  }
+
+  const handleCreateGroup = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!groupForm.name.trim()) return
+
+    try {
+      setIsSubmitting(true)
+      const response = await fetch('/api/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(groupForm),
+      })
+
+      if (response.ok) {
+        setShowCreateForm(false)
+        setGroupForm({ name: '', description: '' })
+        fetchGroups()
+        // TODO: Show success toast
+      } else {
+        const error = await response.json()
+        console.error('Group creation failed:', error.error)
+        // TODO: Show error toast
+      }
+    } catch (error) {
+      console.error('Group creation failed:', error)
       // TODO: Show error toast
     } finally {
       setIsSubmitting(false)
@@ -231,7 +308,56 @@ export default function GroupsPage() {
         </div>
       )}
 
-      {/* Transfer Student Form Modal */}
+      {/* Edit Group Form Modal */}
+      {showEditForm && editingGroup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Grup Düzenle</h3>
+            <form onSubmit={handleEditGroup} className="space-y-4">
+              <div>
+                <Label htmlFor="editName">Grup Adı *</Label>
+                <Input
+                  id="editName"
+                  value={groupForm.name}
+                  onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })}
+                  placeholder="örn., U15, İleri Seviye, Başlangıç"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="editDescription">Açıklama</Label>
+                <Input
+                  id="editDescription"
+                  value={groupForm.description}
+                  onChange={(e) => setGroupForm({ ...groupForm, description: e.target.value })}
+                  placeholder="Grup hakkında kısa açıklama"
+                />
+              </div>
+              <div className="flex justify-end space-x-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowEditForm(false)
+                    setEditingGroup(null)
+                    setGroupForm({ name: '', description: '' })
+                  }}
+                  disabled={isSubmitting}
+                >
+                  İptal
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {isSubmitting ? 'Güncelleniyor...' : 'Grubu Güncelle'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       {showTransferForm && transferStudent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
@@ -327,7 +453,7 @@ export default function GroupsPage() {
                         <div className="text-xs text-gray-500">öğrenci</div>
                       </div>
                     </div>
-                    <div className="mt-2 flex items-center space-x-2">
+                    <div className="mt-2 flex items-center justify-between">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                         group.isActive 
                           ? 'bg-green-100 text-green-800' 
@@ -335,6 +461,33 @@ export default function GroupsPage() {
                       }`}>
                         {group.isActive ? 'Aktif' : 'Pasif'}
                       </span>
+                      
+                      {canManageGroups && (
+                        <div className="flex space-x-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              openEditForm(group)
+                            }}
+                            className="h-7 w-7 p-0"
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteGroup(group)
+                            }}
+                            className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -356,10 +509,25 @@ export default function GroupsPage() {
                       )}
                     </div>
                     {canManageGroups && (
-                      <Button variant="outline" size="sm">
-                        <Edit className="h-4 w-4 mr-2" />
-                        Grubu Düzenle
-                      </Button>
+                      <div className="flex space-x-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => openEditForm(selectedGroup)}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Grubu Düzenle
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDeleteGroup(selectedGroup)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Grubu Sil
+                        </Button>
+                      </div>
                     )}
                   </div>
 

@@ -64,9 +64,17 @@ export default function TrainingsPage() {
       const response = await fetch('/api/trainings');
       if (response.ok) {
         const data = await response.json();
-        setTrainings(data);
+        // Extract trainings array from API response
+        const trainingsArray = data.trainings || data;
+        // Ensure data is always an array
+        setTrainings(Array.isArray(trainingsArray) ? trainingsArray : []);
+      } else {
+        // If response is not ok, set empty array
+        setTrainings([]);
       }
     } catch (error) {
+      // On error, ensure trainings is an empty array
+      setTrainings([]);
       toast({
         title: "Hata",
         description: "Antrenmanlar yüklenemedi",
@@ -221,7 +229,7 @@ export default function TrainingsPage() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{trainings.length}</div>
+            <div className="text-2xl font-bold">{Array.isArray(trainings) ? trainings.length : 0}</div>
           </CardContent>
         </Card>
         <Card>
@@ -231,13 +239,13 @@ export default function TrainingsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {trainings.filter(t => {
+              {Array.isArray(trainings) ? trainings.filter(t => {
                 const trainingDate = new Date(t.date);
                 const now = new Date();
                 const weekStart = new Date(now.setDate(now.getDate() - now.getDay()));
                 const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
                 return trainingDate >= weekStart && trainingDate < weekEnd;
-              }).length}
+              }).length : 0}
             </div>
           </CardContent>
         </Card>
@@ -248,7 +256,7 @@ export default function TrainingsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {trainings.filter(t => t.status === 'COMPLETED' || !t.isActive).length}
+              {Array.isArray(trainings) ? trainings.filter(t => t.status === 'COMPLETED' || !t.isActive).length : 0}
             </div>
           </CardContent>
         </Card>
@@ -259,7 +267,7 @@ export default function TrainingsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {trainings.length > 0 
+              {Array.isArray(trainings) && trainings.length > 0 
                 ? Math.round(trainings.reduce((acc, t) => acc + getAttendanceRate(t), 0) / trainings.length)
                 : 0}%
             </div>
@@ -276,7 +284,7 @@ export default function TrainingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {trainings.length === 0 ? (
+          {!Array.isArray(trainings) || trainings.length === 0 ? (
             <div className="text-center py-8">
               <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-medium mb-2">Henüz antrenman yok</h3>
@@ -290,7 +298,7 @@ export default function TrainingsPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {trainings.map((training) => (
+              {Array.isArray(trainings) && trainings.map((training) => (
                 <div
                   key={training.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50"

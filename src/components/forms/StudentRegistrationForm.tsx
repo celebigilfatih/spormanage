@@ -264,7 +264,7 @@ export function StudentRegistrationForm({
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
-                    <Label htmlFor={`parents.${index}.firstName`}>First Name *</Label>
+                    <Label htmlFor={`parents.${index}.firstName`}>Ad *</Label>
                     <Input
                       {...register(`parents.${index}.firstName`)}
                       className={errors.parents?.[index]?.firstName ? 'border-red-500' : ''}
@@ -277,7 +277,7 @@ export function StudentRegistrationForm({
                   </div>
 
                   <div>
-                    <Label htmlFor={`parents.${index}.lastName`}>Last Name *</Label>
+                    <Label htmlFor={`parents.${index}.lastName`}>Soyad *</Label>
                     <Input
                       {...register(`parents.${index}.lastName`)}
                       className={errors.parents?.[index]?.lastName ? 'border-red-500' : ''}
@@ -308,18 +308,18 @@ export function StudentRegistrationForm({
                     <Input
                       type="email"
                       {...register(`parents.${index}.email`)}
-                      placeholder="parent@example.com"
+                      placeholder="veli@example.com"
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor={`parents.${index}.relationship`}>Relationship *</Label>
+                    <Label htmlFor={`parents.${index}.relationship`}>Yakınlık *</Label>
                     <Select
                       onValueChange={(value) => setValue(`parents.${index}.relationship`, value)}
                       defaultValue={watchedParents[index]?.relationship}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select relationship" />
+                        <SelectValue placeholder="Yakınlık seçin" />
                       </SelectTrigger>
                       <SelectContent>
                         {relationshipOptions.map((option) => (
@@ -332,10 +332,10 @@ export function StudentRegistrationForm({
                   </div>
 
                   <div>
-                    <Label htmlFor={`parents.${index}.address`}>Address</Label>
+                    <Label htmlFor={`parents.${index}.address`}>Adres</Label>
                     <Input
                       {...register(`parents.${index}.address`)}
-                      placeholder="Full address"
+                      placeholder="Tam adres"
                     />
                   </div>
 
@@ -379,14 +379,14 @@ export function StudentRegistrationForm({
             onClick={onCancel}
             disabled={isLoading}
           >
-            Cancel
+            İptal
           </Button>
           <Button
             type="submit"
             disabled={isLoading}
             className="bg-blue-600 hover:bg-blue-700"
           >
-            {isLoading ? 'Saving...' : 'Register Student'}
+            {isLoading ? 'Kaydediliyor...' : 'Öğrenciyi Kaydet'}
           </Button>
         </div>
       </form>
