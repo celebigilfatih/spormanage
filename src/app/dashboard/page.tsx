@@ -3,20 +3,16 @@
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { UserRole } from '@/types'
-import InAppNotifications from '@/components/InAppNotifications'
+import AppLayout from '@/components/AppLayout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { 
   Users, 
   CreditCard, 
   AlertTriangle, 
   Calendar,
-  UserPlus,
   FileText,
   GraduationCap,
   TrendingUp,
-  Settings,
-  Trophy,
   Target,
   BookOpen,
   DollarSign,
@@ -41,26 +37,6 @@ export default function Dashboard() {
   if (!user) {
     router.push('/login')
     return null
-  }
-
-  const handleLogout = async () => {
-    await logout()
-    router.push('/login')
-  }
-
-  const getRoleDisplayName = (role: UserRole) => {
-    switch (role) {
-      case UserRole.ADMIN:
-        return 'Yönetici'
-      case UserRole.ACCOUNTING:
-        return 'Muhasebe'
-      case UserRole.TRAINER:
-        return 'Antrenör'
-      case UserRole.SECRETARY:
-        return 'Sekreter'
-      default:
-        return role
-    }
   }
 
   const quickActions = [
@@ -109,76 +85,9 @@ export default function Dashboard() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo and Title */}
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg">
-                <Trophy className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">
-                  Futbol Okulu
-                </h1>
-                <p className="text-sm text-gray-500">Yönetim Sistemi</p>
-              </div>
-            </div>
-
-            {/* Navigation */}
-            <nav className="hidden lg:flex space-x-1">
-              {[
-                { name: 'Öğrenciler', route: '/students', icon: Users },
-                { name: 'Ödemeler', route: '/payments', icon: CreditCard },
-                { name: 'Antrenmanlar', route: '/trainings', icon: Activity },
-                { name: 'Raporlar', route: '/reports', icon: TrendingUp },
-                { name: 'Ayarlar', route: '/settings', icon: Settings }
-              ].map((item) => {
-                const Icon = item.icon
-                return (
-                  <button
-                    key={item.name}
-                    onClick={() => router.push(item.route)}
-                    className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span>{item.name}</span>
-                  </button>
-                )
-              })}
-            </nav>
-
-            {/* User Menu */}
-            <div className="flex items-center space-x-4">
-              <InAppNotifications />
-              <div className="hidden sm:flex items-center space-x-3">
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                  <p className="text-xs text-gray-500">{getRoleDisplayName(user.role as UserRole)}</p>
-                </div>
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-medium">
-                    {user.name.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-              </div>
-              <Button
-                onClick={handleLogout}
-                variant="outline"
-                size="sm"
-                className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
-              >
-                Çıkış
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
-
+    <AppLayout>
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-8 text-white">
@@ -346,7 +255,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   )
 }

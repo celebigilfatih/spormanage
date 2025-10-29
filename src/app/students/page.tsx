@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import AppLayout from '@/components/AppLayout'
 import { StudentRegistrationForm } from '@/components/forms/StudentRegistrationForm'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -118,14 +119,17 @@ export default function StudentsPage() {
         setSelectedStudent(null)
         fetchStudents() // Refresh the list
         // TODO: Show success toast
+        alert('Öğrenci başarıyla güncellendi!')
       } else {
         const error = await response.json()
         // TODO: Show error toast
         console.error('Edit failed:', error.error)
+        alert('Güncelleme başarısız: ' + (error.error || 'Bilinmeyen hata'))
       }
     } catch (error) {
       console.error('Edit failed:', error)
       // TODO: Show error toast
+      alert('Güncelleme başarısız oldu')
     } finally {
       setIsSubmitting(false)
     }
@@ -154,14 +158,20 @@ export default function StudentsPage() {
     setCurrentPage(1)
   }
 
-  if (showRegistrationForm) {
+  if (showRegistrationForm || showEditModal) {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <StudentRegistrationForm
-            onSubmit={handleStudentRegistration}
-            onCancel={() => setShowRegistrationForm(false)}
+            onSubmit={showEditModal ? handleStudentEdit : handleStudentRegistration}
+            onCancel={() => {
+              setShowRegistrationForm(false)
+              setShowEditModal(false)
+              setSelectedStudent(null)
+            }}
             isLoading={isSubmitting}
+            initialData={showEditModal ? selectedStudent : null}
+            mode={showEditModal ? 'edit' : 'create'}
           />
         </div>
       </div>
@@ -169,8 +179,8 @@ export default function StudentsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+    <AppLayout>
+      {/* Page Header */}
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
@@ -544,33 +554,7 @@ export default function StudentsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Student Edit Modal */}
-      <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {selectedStudent?.firstName} {selectedStudent?.lastName} - Düzenle
-            </DialogTitle>
-          </DialogHeader>
-          {selectedStudent && (
-            <div className="p-4">
-              <div className="text-center text-gray-600">
-                <p className="mb-4">Öğrenci düzenleme özelliği geliştiriliyor.</p>
-                <p>Şimdilik öğrenci detaylarını görüntüleyebilirsiniz.</p>
-                <Button 
-                  onClick={() => {
-                    setShowEditModal(false)
-                    setSelectedStudent(null)
-                  }}
-                  className="mt-4"
-                >
-                  Tamam
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
+      {/* Student Edit Modal - Removed, now using form */}
+    </AppLayout>
   )
 }

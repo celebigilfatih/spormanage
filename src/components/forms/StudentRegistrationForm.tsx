@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Plus, Trash2, Users, User } from 'lucide-react'
-import { StudentFormData, Group } from '@/types'
+import { StudentFormData, Group, Student } from '@/types'
 
 const parentSchema = z.object({
   firstName: z.string().min(1, 'Ad gerekli'),
@@ -53,12 +53,16 @@ interface StudentRegistrationFormProps {
   onSubmit: (data: StudentFormData) => Promise<void>
   onCancel: () => void
   isLoading?: boolean
+  initialData?: Student | null
+  mode?: 'create' | 'edit'
 }
 
 export function StudentRegistrationForm({ 
   onSubmit, 
   onCancel, 
-  isLoading = false 
+  isLoading = false,
+  initialData = null,
+  mode = 'create'
 }: StudentRegistrationFormProps) {
   const [groups, setGroups] = useState<Group[]>([])
   const [loadingGroups, setLoadingGroups] = useState(true)
@@ -72,7 +76,25 @@ export function StudentRegistrationForm({
     formState: { errors }
   } = useForm<StudentFormData>({
     resolver: zodResolver(studentSchema),
-    defaultValues: {
+    defaultValues: initialData ? {
+      firstName: initialData.firstName,
+      lastName: initialData.lastName,
+      phone: initialData.phone || '',
+      birthDate: initialData.birthDate ? new Date(initialData.birthDate).toISOString().split('T')[0] : '',
+      groupId: initialData.groupId || '',
+      parents: initialData.parents && initialData.parents.length > 0 ? initialData.parents : [
+        {
+          firstName: '',
+          lastName: '',
+          phone: '',
+          email: '',
+          address: '',
+          relationship: 'Anne',
+          isEmergency: false,
+          isPrimary: true,
+        }
+      ]
+    } : {
       parents: [
         {
           firstName: '',
@@ -148,7 +170,9 @@ export function StudentRegistrationForm({
     <div className="bg-white rounded-lg shadow-lg p-6 max-w-4xl mx-auto">
       <div className="flex items-center gap-2 mb-6">
         <Users className="h-6 w-6 text-blue-600" />
-        <h2 className="text-2xl font-bold text-gray-900">Yeni Öğrenci Kaydı</h2>
+        <h2 className="text-2xl font-bold text-gray-900">
+          {mode === 'edit' ? 'Öğrenci Düzenle' : 'Yeni Öğrenci Kaydı'}
+        </h2>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
@@ -204,7 +228,10 @@ export function StudentRegistrationForm({
 
             <div>
               <Label htmlFor="groupId">Grup</Label>
-              <Select onValueChange={(value) => setValue('groupId', value)}>
+              <Select 
+                onValueChange={(value) => setValue('groupId', value)}
+                defaultValue={initialData?.groupId || undefined}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder={loadingGroups ? "Yükleniyor..." : "Grup seçin"} />
                 </SelectTrigger>
@@ -386,7 +413,7 @@ export function StudentRegistrationForm({
             disabled={isLoading}
             className="bg-blue-600 hover:bg-blue-700"
           >
-            {isLoading ? 'Kaydediliyor...' : 'Öğrenciyi Kaydet'}
+            {isLoading ? 'Kaydediliyor...' : mode === 'edit' ? 'Öğrenciyi Güncelle' : 'Öğrenciyi Kaydet'}
           </Button>
         </div>
       </form>

@@ -2,6 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useRouter } from 'next/navigation'
+import Header from '@/components/Header'
+import { PaymentForm } from '@/components/forms/PaymentForm'
+import { RecordPaymentForm } from '@/components/forms/RecordPaymentForm'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -15,7 +19,9 @@ import {
   Clock,
   Users,
   Calendar,
-  Filter
+  Filter,
+  Edit,
+  X
 } from 'lucide-react'
 import { Payment, Group, FeeType, PaymentStatus, PaymentMethod, UserRole } from '@/types'
 import { AuthService } from '@/lib/auth'
@@ -40,6 +46,7 @@ interface PaymentsResponse {
 
 export default function PaymentsPage() {
   const { user } = useAuth()
+  const router = useRouter()
   const [payments, setPayments] = useState<Payment[]>([])
   const [groups, setGroups] = useState<Group[]>([])
   const [feeTypes, setFeeTypes] = useState<FeeType[]>([])
@@ -63,6 +70,13 @@ export default function PaymentsPage() {
   // Bulk operations
   const [selectedPayments, setSelectedPayments] = useState<string[]>([])
   const [showBulkActions, setShowBulkActions] = useState(false)
+
+  // Form states
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [showEditForm, setShowEditForm] = useState(false)
+  const [showRecordForm, setShowRecordForm] = useState(false)
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const canManagePayments = user && AuthService.canManagePayments(user.role as UserRole)
 
@@ -145,25 +159,84 @@ export default function PaymentsPage() {
     )
   }
 
-  const handleRecordPayment = async (paymentId: string, amount?: number) => {
+  const handleAddPayment = async (data: any) => {
+    setIsSubmitting(true)
     try {
-      const response = await fetch(`/api/payments/${paymentId}`, {
+      const response = await fetch('/api/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+
+      if (response.ok) {
+        setShowAddForm(false)
+        fetchPayments()
+        alert('Ödeme kaydı başarıyla oluşturuldu!')
+      } else {
+        const error = await response.json()
+        alert('Hata: ' + (error.error || 'Ödeme oluşturulamadı'))
+      }
+    } catch (error) {
+      alert('Ödeme kaydı oluşturulurken bir hata oluştu')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleEditPayment = async (data: any) => {
+    if (!selectedPayment) return
+    
+    setIsSubmitting(true)
+    try {
+      const response = await fetch(`/api/payments/${selectedPayment.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+
+      if (response.ok) {
+        setShowEditForm(false)
+        setSelectedPayment(null)
+        fetchPayments()
+        alert('Ödeme kaydı başarıyla güncellendi!')
+      } else {
+        const error = await response.json()
+        alert('Hata: ' + (error.error || 'Ödeme güncellenemedi'))
+      }
+    } catch (error) {
+      alert('Ödeme güncellenirken bir hata oluştu')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleRecordPayment = async (data: any) => {
+    if (!selectedPayment) return
+
+    setIsSubmitting(true)
+    try {
+      const response = await fetch(`/api/payments/${selectedPayment.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'record_payment',
-          paidAmount: amount,
-          paymentMethod: PaymentMethod.CASH
-        }),
+          ...data
+        })
       })
 
       if (response.ok) {
-        fetchPayments() // Refresh the list
-        // TODO: Show success toast
+        setShowRecordForm(false)
+        setSelectedPayment(null)
+        fetchPayments()
+        alert('Ödeme başarıyla kaydedildi!')
+      } else {
+        const error = await response.json()
+        alert('Hata: ' + (error.error || 'Ödeme kaydedilemedi'))
       }
     } catch (error) {
-      console.error('Failed to record payment:', error)
-      // TODO: Show error toast
+      alert('Ödeme kaydedilirken bir hata oluştu')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -220,9 +293,97 @@ export default function PaymentsPage() {
            new Date(payment.dueDate) < new Date()
   }
 
+  // Show forms
+  if (showAddForm) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <Button
+            variant="outline"
+            onClick={() => setShowAddForm(false)}
+            className="mb-4"
+          >
+            <X className="h-4 w-4 mr-2" />
+            İptal
+          </Button>
+          <PaymentForm
+            onSubmit={handleAddPayment}
+            onCancel={() => setShowAddForm(false)}
+            isLoading={isSubmitting}
+            mode="create"
+          />
+        </div>
+      </div>
+    )
+  }
+
+  if (showEditForm && selectedPayment) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowEditForm(false)
+              setSelectedPayment(null)
+            }}
+            className="mb-4"
+          >
+            <X className="h-4 w-4 mr-2" />
+            İptal
+          </Button>
+          <PaymentForm
+            onSubmit={handleEditPayment}
+            onCancel={() => {
+              setShowEditForm(false)
+              setSelectedPayment(null)
+            }}
+            isLoading={isSubmitting}
+            initialData={selectedPayment}
+            mode="edit"
+          />
+        </div>
+      </div>
+    )
+  }
+
+  if (showRecordForm && selectedPayment) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowRecordForm(false)
+              setSelectedPayment(null)
+            }}
+            className="mb-4"
+          >
+            <X className="h-4 w-4 mr-2" />
+            İptal
+          </Button>
+          <RecordPaymentForm
+            payment={selectedPayment}
+            onSubmit={handleRecordPayment}
+            onCancel={() => {
+              setShowRecordForm(false)
+              setSelectedPayment(null)
+            }}
+            isLoading={isSubmitting}
+          />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+      <Header />
+      
+      {/* Page Header */}
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
@@ -236,12 +397,15 @@ export default function PaymentsPage() {
               <div className="flex space-x-3">
                 <Button
                   variant="outline"
-                  onClick={() => setShowBulkActions(!showBulkActions)}
+                  onClick={() => router.push('/payments/bulk')}
                 >
                   <Users className="h-4 w-4 mr-2" />
                   Toplu İşlemler
                 </Button>
-                <Button className="bg-blue-600 hover:bg-blue-700">
+                <Button 
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={() => setShowAddForm(true)}
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Ödeme Ekle
                 </Button>
@@ -491,15 +655,28 @@ export default function PaymentsPage() {
                         {(payment.status === PaymentStatus.PENDING || payment.status === PaymentStatus.PARTIAL) && (
                           <Button
                             size="sm"
-                            onClick={() => handleRecordPayment(payment.id)}
+                            onClick={() => {
+                              setSelectedPayment(payment)
+                              setShowRecordForm(true)
+                            }}
                             className="bg-green-600 hover:bg-green-700"
                           >
-                            Record Payment
+                            Ödeme Kaydet
                           </Button>
                         )}
-                        <Button variant="outline" size="sm">
-                          View Details
-                        </Button>
+                        {payment.status !== PaymentStatus.PAID && payment.status !== PaymentStatus.CANCELLED && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              setSelectedPayment(payment)
+                              setShowEditForm(true)
+                            }}
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Düzenle
+                          </Button>
+                        )}
                       </div>
                     )}
                   </div>

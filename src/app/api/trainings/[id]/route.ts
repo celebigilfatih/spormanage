@@ -12,8 +12,12 @@ export async function DELETE(
     const training = await prisma.training.findUnique({
       where: { id: trainingId },
       include: {
-        _count: {
-          select: { attendances: true }
+        sessions: {
+          include: {
+            _count: {
+              select: { attendances: true }
+            }
+          }
         }
       }
     });
@@ -25,12 +29,19 @@ export async function DELETE(
       );
     }
 
-    // Delete associated attendances first
-    if (training._count.attendances > 0) {
-      await prisma.attendance.deleteMany({
-        where: { trainingId }
-      });
+    // Delete associated attendances first (via sessions)
+    for (const session of training.sessions) {
+      if (session._count.attendances > 0) {
+        await prisma.attendance.deleteMany({
+          where: { sessionId: session.id }
+        });
+      }
     }
+
+    // Delete sessions
+    await prisma.trainingSession.deleteMany({
+      where: { trainingId }
+    });
 
     // Delete the training
     await prisma.training.delete({
@@ -55,11 +66,14 @@ export async function PUT(
     const trainingId = params.id;
     const body = await request.json();
     
-    const { groupId, name, description, date, startTime, endTime, location, status } = body;
+    const { groupId, name, description, sessions } = body;
 
     // Check if training exists
     const existingTraining = await prisma.training.findUnique({
-      where: { id: trainingId }
+      where: { id: trainingId },
+      include: {
+        sessions: true
+      }
     });
 
     if (!existingTraining) {
@@ -69,45 +83,55 @@ export async function PUT(
       );
     }
 
-    // Parse date and time
-    const trainingDate = new Date(date);
-    const [startHour, startMinute] = startTime.split(':');
-    const [endHour, endMinute] = endTime.split(':');
-    
-    const startDateTime = new Date(trainingDate);
-    startDateTime.setHours(parseInt(startHour), parseInt(startMinute), 0);
-    
-    const endDateTime = new Date(trainingDate);
-    endDateTime.setHours(parseInt(endHour), parseInt(endMinute), 0);
-    
-    const duration = Math.round((endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60));
+    // Delete existing sessions
+    await prisma.trainingSession.deleteMany({
+      where: { trainingId }
+    });
 
-    // Update training
+    // Update training with new sessions
     const updatedTraining = await prisma.training.update({
       where: { id: trainingId },
       data: {
         groupId,
         name,
         description,
-        date: trainingDate,
-        time: startTime,
-        duration,
-        location,
-        status: status || 'SCHEDULED'
+        sessions: {
+          create: sessions.map((session: any) => {
+            const trainingDate = new Date(session.date);
+            const [startHour, startMinute] = session.startTime.split(':').map(Number);
+            const [endHour, endMinute] = session.endTime.split(':').map(Number);
+
+            const startDateTime = new Date(trainingDate);
+            startDateTime.setHours(startHour, startMinute, 0, 0);
+
+            const endDateTime = new Date(trainingDate);
+            endDateTime.setHours(endHour, endMinute, 0, 0);
+
+            return {
+              date: trainingDate,
+              startTime: startDateTime,
+              endTime: endDateTime,
+              location: session.location,
+              notes: session.notes
+            };
+          })
+        }
       },
       include: {
         group: {
-          select: {
-            id: true,
-            name: true,
-            level: true,
+          include: {
             _count: {
               select: { students: true }
             }
           }
         },
-        _count: {
-          select: { attendances: true }
+        sessions: {
+          include: {
+            _count: {
+              select: { attendances: true }
+            }
+          },
+          orderBy: { date: 'asc' }
         }
       }
     });
@@ -136,27 +160,19 @@ export async function GET(
           select: {
             id: true,
             name: true,
-            level: true,
             description: true,
             _count: {
               select: { students: true }
             }
           }
         },
-        attendances: {
+        sessions: {
           include: {
-            student: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                studentNumber: true
-              }
+            _count: {
+              select: { attendances: true }
             }
-          }
-        },
-        _count: {
-          select: { attendances: true }
+          },
+          orderBy: { date: 'asc' }
         }
       }
     });

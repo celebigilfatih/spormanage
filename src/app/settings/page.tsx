@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Header from '@/components/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -156,22 +157,28 @@ export default function SettingsPage() {
 
   if (!isAdmin) {
     return (
-      <div className="container mx-auto py-6">
-        <Card>
-          <CardContent className="text-center py-8">
-            <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Yetkisiz Erişim</h2>
-            <p className="text-muted-foreground">Bu sayfaya erişim yetkiniz bulunmamaktadır.</p>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="container mx-auto py-6">
+          <Card>
+            <CardContent className="text-center py-8">
+              <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h2 className="text-xl font-semibold mb-2">Yetkisiz Erişim</h2>
+              <p className="text-muted-foreground">Bu sayfaya erişim yetkiniz bulunmamaktadır.</p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+      
+      <div className="container mx-auto py-6 space-y-6">
+        {/* Page Header */}
+        <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Sistem Ayarları</h1>
           <p className="text-muted-foreground">
@@ -188,9 +195,9 @@ export default function SettingsPage() {
             {saving ? 'Kaydediliyor...' : 'Kaydet'}
           </Button>
         </div>
-      </div>
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* School Information */}
         <Card>
           <CardHeader>
@@ -429,6 +436,7 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

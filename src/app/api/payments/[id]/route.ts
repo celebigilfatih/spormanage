@@ -124,3 +124,140 @@ export async function PATCH(
     )
   }
 }
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const user = await getCurrentUser(request)
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    if (!AuthService.canManagePayments(user.role as any)) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions' },
+        { status: 403 }
+      )
+    }
+
+    const paymentId = params.id
+    const data = await request.json()
+    const { amount, dueDate, notes } = data
+
+    const payment = await prisma.payment.findUnique({
+      where: { id: paymentId }
+    })
+
+    if (!payment) {
+      return NextResponse.json(
+        { error: 'Payment not found' },
+        { status: 404 }
+      )
+    }
+
+    // Only allow editing if payment is not paid or cancelled
+    if (payment.status === PaymentStatus.PAID || payment.status === PaymentStatus.CANCELLED) {
+      return NextResponse.json(
+        { error: 'Cannot edit paid or cancelled payments' },
+        { status: 400 }
+      )
+    }
+
+    const updatedPayment = await prisma.payment.update({
+      where: { id: paymentId },
+      data: {
+        amount: amount ? parseFloat(amount) : payment.amount,
+        dueDate: dueDate ? new Date(dueDate) : payment.dueDate,
+        notes: notes !== undefined ? notes : payment.notes
+      },
+      include: {
+        student: {
+          include: { 
+            group: true,
+            parents: {
+              where: { isPrimary: true },
+              take: 1
+            }
+          }
+        },
+        feeType: true,
+        createdBy: {
+          select: { name: true }
+        }
+      }
+    })
+
+    return NextResponse.json(updatedPayment)
+  } catch (error) {
+    console.error('Failed to update payment:', error)
+    return NextResponse.json(
+      { error: 'Failed to update payment' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const user = await getCurrentUser(request)
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    if (!AuthService.canManagePayments(user.role as any)) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions' },
+        { status: 403 }
+      )
+    }
+
+    const paymentId = params.id
+
+    const payment = await prisma.payment.findUnique({
+      where: { id: paymentId }
+    })
+
+    if (!payment) {
+      return NextResponse.json(
+        { error: 'Payment not found' },
+        { status: 404 }
+      )
+    }
+
+    // Only allow deleting if payment is pending or partial
+    if (payment.status !== PaymentStatus.PENDING && payment.status !== PaymentStatus.PARTIAL) {
+      return NextResponse.json(
+        { error: 'Only pending or partial payments can be deleted' },
+        { status: 400 }
+      )
+    }
+
+    // Soft delete by marking as cancelled
+    const deletedPayment = await prisma.payment.update({
+      where: { id: paymentId },
+      data: {
+        status: PaymentStatus.CANCELLED,
+        notes: `${payment.notes ? payment.notes + ' | ' : ''}DELETED by ${user.name}`
+      }
+    })
+
+    return NextResponse.json({ message: 'Payment deleted successfully' })
+  } catch (error) {
+    console.error('Failed to delete payment:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete payment' },
+      { status: 500 }
+    )
+  }
+}

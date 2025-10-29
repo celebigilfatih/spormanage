@@ -15,24 +15,25 @@ import {
   Calendar,
   MapPin
 } from 'lucide-react'
-import { Training, Student, AttendanceStatus, Attendance } from '@/types'
+import { Training, TrainingSession, Student, AttendanceStatus, Attendance } from '@/types'
 
 interface AttendanceData {
   studentId: string
+  sessionId: string
   status: AttendanceStatus
   notes?: string
   excuseReason?: string
 }
 
 interface AttendanceTrackerProps {
-  training: Training
+  session: TrainingSession & { training: Training }
   onSubmit: (attendances: AttendanceData[]) => Promise<void>
   onCancel: () => void
   isLoading?: boolean
 }
 
 export function AttendanceTracker({ 
-  training, 
+  session, 
   onSubmit, 
   onCancel, 
   isLoading = false 
@@ -45,12 +46,12 @@ export function AttendanceTracker({
   useEffect(() => {
     fetchStudents()
     fetchExistingAttendances()
-  }, [training.id])
+  }, [session.id])
 
   const fetchStudents = async () => {
     try {
       setLoadingStudents(true)
-      const response = await fetch(`/api/students?groupId=${training.groupId}&status=active&limit=100`)
+      const response = await fetch(`/api/students?groupId=${session.training.groupId}&status=active&limit=100`)
       if (response.ok) {
         const data = await response.json()
         setStudents(data.students)
@@ -58,6 +59,7 @@ export function AttendanceTracker({
         // Initialize attendance data
         const initialAttendances = data.students.map((student: Student) => ({
           studentId: student.id,
+          sessionId: session.id,
           status: AttendanceStatus.PRESENT,
           notes: '',
           excuseReason: ''
@@ -73,7 +75,7 @@ export function AttendanceTracker({
 
   const fetchExistingAttendances = async () => {
     try {
-      const response = await fetch(`/api/attendances?trainingId=${training.id}`)
+      const response = await fetch(`/api/attendances?sessionId=${session.id}`)
       if (response.ok) {
         const data = await response.json()
         setExistingAttendances(data)
@@ -86,6 +88,7 @@ export function AttendanceTracker({
               if (existing) {
                 return {
                   studentId: att.studentId,
+                  sessionId: session.id,
                   status: existing.status,
                   notes: existing.notes || '',
                   excuseReason: existing.excuseReason || ''
@@ -139,10 +142,10 @@ export function AttendanceTracker({
 
   const getStatusLabel = (status: AttendanceStatus) => {
     const labels = {
-      [AttendanceStatus.PRESENT]: 'Present',
-      [AttendanceStatus.ABSENT]: 'Absent',
-      [AttendanceStatus.EXCUSED]: 'Excused',
-      [AttendanceStatus.LATE]: 'Late',
+      [AttendanceStatus.PRESENT]: 'Katıldı',
+      [AttendanceStatus.ABSENT]: 'Katılmadı',
+      [AttendanceStatus.EXCUSED]: 'Mazeretli',
+      [AttendanceStatus.LATE]: 'Geç Kaldı',
     }
     return labels[status]
   }
@@ -155,30 +158,33 @@ export function AttendanceTracker({
       {/* Header */}
       <div className="flex items-center gap-2 mb-6">
         <Users className="h-6 w-6 text-blue-600" />
-        <h2 className="text-2xl font-bold text-gray-900">Attendance Tracker</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Yoklama Takibi</h2>
       </div>
 
-      {/* Training Details */}
+      {/* Session Details */}
       <div className="bg-blue-50 p-4 rounded-lg mb-6">
-        <h3 className="font-semibold text-blue-900 mb-2">{training.name}</h3>
+        <h3 className="font-semibold text-blue-900 mb-2">{session.training.name}</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-blue-800">
           <div className="flex items-center">
             <Calendar className="h-4 w-4 mr-2" />
-            {new Date(training.date).toLocaleDateString()} at {new Date(training.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {new Date(session.date).toLocaleDateString('tr-TR')} at {new Date(session.startTime).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
           </div>
           <div className="flex items-center">
             <Users className="h-4 w-4 mr-2" />
-            Group: {training.group?.name}
+            Grup: {session.training.group?.name}
           </div>
-          {training.location && (
+          {session.location && (
             <div className="flex items-center">
               <MapPin className="h-4 w-4 mr-2" />
-              {training.location}
+              {session.location}
             </div>
           )}
         </div>
-        {training.description && (
-          <p className="text-sm text-blue-700 mt-2">{training.description}</p>
+        {session.training.description && (
+          <p className="text-sm text-blue-700 mt-2">{session.training.description}</p>
+        )}
+        {session.notes && (
+          <p className="text-sm text-blue-700 mt-1"><strong>Seans Notları:</strong> {session.notes}</p>
         )}
       </div>
 
@@ -191,7 +197,7 @@ export function AttendanceTracker({
           className="text-green-600 hover:text-green-700"
         >
           <UserCheck className="h-4 w-4 mr-2" />
-          Mark All Present
+          Hepsini Katıldı İşaretle
         </Button>
         <Button
           variant="outline"
@@ -200,7 +206,7 @@ export function AttendanceTracker({
           className="text-red-600 hover:text-red-700"
         >
           <UserX className="h-4 w-4 mr-2" />
-          Mark All Absent
+          Hepsini Katılmadı İşaretle
         </Button>
       </div>
 
@@ -208,35 +214,35 @@ export function AttendanceTracker({
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         <div className="bg-green-50 p-3 rounded-lg text-center">
           <div className="text-2xl font-bold text-green-600">{stats.present}</div>
-          <div className="text-sm text-green-700">Present</div>
+          <div className="text-sm text-green-700">Katıldı</div>
         </div>
         <div className="bg-red-50 p-3 rounded-lg text-center">
           <div className="text-2xl font-bold text-red-600">{stats.absent}</div>
-          <div className="text-sm text-red-700">Absent</div>
+          <div className="text-sm text-red-700">Katılmadı</div>
         </div>
         <div className="bg-yellow-50 p-3 rounded-lg text-center">
           <div className="text-2xl font-bold text-yellow-600">{stats.excused}</div>
-          <div className="text-sm text-yellow-700">Excused</div>
+          <div className="text-sm text-yellow-700">Mazeretli</div>
         </div>
         <div className="bg-orange-50 p-3 rounded-lg text-center">
           <div className="text-2xl font-bold text-orange-600">{stats.late}</div>
-          <div className="text-sm text-orange-700">Late</div>
+          <div className="text-sm text-orange-700">Geç Kaldı</div>
         </div>
         <div className="bg-blue-50 p-3 rounded-lg text-center">
           <div className="text-2xl font-bold text-blue-600">{attendanceRate}%</div>
-          <div className="text-sm text-blue-700">Rate</div>
+          <div className="text-sm text-blue-700">Oran</div>
         </div>
       </div>
 
       {/* Student List */}
       {loadingStudents ? (
         <div className="text-center py-8">
-          <div className="text-gray-600">Loading students...</div>
+          <div className="text-gray-600">Öğrenciler yükleniyor...</div>
         </div>
       ) : students.length === 0 ? (
         <div className="text-center py-8 bg-gray-50 rounded-lg">
           <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <div className="text-gray-600">No students found in this group</div>
+          <div className="text-gray-600">Bu grupta öğrenci bulunamadı</div>
         </div>
       ) : (
         <div className="space-y-4 mb-6">
@@ -259,7 +265,7 @@ export function AttendanceTracker({
 
                   {/* Status Selection */}
                   <div>
-                    <Label className="text-xs text-gray-600">Status</Label>
+                    <Label className="text-xs text-gray-600">Durum</Label>
                     <Select
                       value={attendance.status}
                       onValueChange={(value) => updateAttendance(student.id, 'status', value as AttendanceStatus)}
@@ -271,25 +277,25 @@ export function AttendanceTracker({
                         <SelectItem value={AttendanceStatus.PRESENT}>
                           <span className="flex items-center">
                             <UserCheck className="h-4 w-4 mr-2 text-green-600" />
-                            Present
+                            Katıldı
                           </span>
                         </SelectItem>
                         <SelectItem value={AttendanceStatus.ABSENT}>
                           <span className="flex items-center">
                             <UserX className="h-4 w-4 mr-2 text-red-600" />
-                            Absent
+                            Katılmadı
                           </span>
                         </SelectItem>
                         <SelectItem value={AttendanceStatus.EXCUSED}>
                           <span className="flex items-center">
                             <AlertTriangle className="h-4 w-4 mr-2 text-yellow-600" />
-                            Excused
+                            Mazeretli
                           </span>
                         </SelectItem>
                         <SelectItem value={AttendanceStatus.LATE}>
                           <span className="flex items-center">
                             <Clock className="h-4 w-4 mr-2 text-orange-600" />
-                            Late
+                            Geç Kaldı
                           </span>
                         </SelectItem>
                       </SelectContent>
@@ -299,9 +305,9 @@ export function AttendanceTracker({
                   {/* Excuse Reason (if excused) */}
                   {attendance.status === AttendanceStatus.EXCUSED && (
                     <div>
-                      <Label className="text-xs text-gray-600">Excuse Reason</Label>
+                      <Label className="text-xs text-gray-600">Mazeret Nedeni</Label>
                       <Input
-                        placeholder="Reason for excuse"
+                        placeholder="Mazeret nedeni"
                         value={attendance.excuseReason || ''}
                         onChange={(e) => updateAttendance(student.id, 'excuseReason', e.target.value)}
                       />
@@ -310,9 +316,9 @@ export function AttendanceTracker({
 
                   {/* Notes */}
                   <div className={attendance.status === AttendanceStatus.EXCUSED ? "md:col-span-2" : "md:col-span-3"}>
-                    <Label className="text-xs text-gray-600">Notes</Label>
+                    <Label className="text-xs text-gray-600">Notlar</Label>
                     <Input
-                      placeholder="Additional notes"
+                      placeholder="Ek notlar"
                       value={attendance.notes || ''}
                       onChange={(e) => updateAttendance(student.id, 'notes', e.target.value)}
                     />
@@ -339,7 +345,7 @@ export function AttendanceTracker({
           onClick={onCancel}
           disabled={isLoading}
         >
-          Cancel
+          İptal
         </Button>
         <Button
           onClick={() => onSubmit(attendances)}
@@ -347,7 +353,7 @@ export function AttendanceTracker({
           className="bg-green-600 hover:bg-green-700"
         >
           <Save className="h-4 w-4 mr-2" />
-          {isLoading ? 'Saving...' : 'Save Attendance'}
+          {isLoading ? 'Kaydediliyor...' : 'Yoklamayı Kaydet'}
         </Button>
       </div>
     </div>

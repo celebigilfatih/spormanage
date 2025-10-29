@@ -54,16 +54,35 @@ export default function InAppNotifications({ userId, studentId }: InAppNotificat
         params.append('studentId', studentId);
       }
 
-      const response = await fetch(`/api/notifications?${params}`);
+      const response = await fetch(`/api/notifications?${params}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin',
+      });
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Unauthorized - user might not be logged in
+          console.warn('Unauthorized access to notifications');
+          setNotifications([]);
+          return;
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
       
-      if (response.ok) {
+      if (data.notifications) {
         setNotifications(data.notifications);
         // For demo purposes, assume first 3 are unread
         setUnreadCount(Math.min(3, data.notifications.length));
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      // Don't show error to user, just silently fail
+      setNotifications([]);
     } finally {
       setLoading(false);
     }

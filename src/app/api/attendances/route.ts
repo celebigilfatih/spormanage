@@ -18,14 +18,14 @@ async function getCurrentUser(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const trainingId = searchParams.get('trainingId')
+    const sessionId = searchParams.get('sessionId')
     const studentId = searchParams.get('studentId')
     const status = searchParams.get('status')
 
     const where: any = {}
 
-    if (trainingId) {
-      where.trainingId = trainingId
+    if (sessionId) {
+      where.sessionId = sessionId
     }
 
     if (studentId) {
@@ -44,9 +44,13 @@ export async function GET(request: NextRequest) {
             group: true
           }
         },
-        training: {
+        session: {
           include: {
-            group: true
+            training: {
+              include: {
+                group: true
+              }
+            }
           }
         },
         createdBy: {
@@ -56,7 +60,7 @@ export async function GET(request: NextRequest) {
         }
       },
       orderBy: [
-        { training: { date: 'desc' } },
+        { session: { date: 'desc' } },
         { student: { lastName: 'asc' } }
       ]
     })
@@ -96,9 +100,9 @@ export async function POST(request: NextRequest) {
         data.map((attendance: any) =>
           prisma.attendance.upsert({
             where: {
-              studentId_trainingId: {
+              studentId_sessionId: {
                 studentId: attendance.studentId,
-                trainingId: attendance.trainingId
+                sessionId: attendance.sessionId
               }
             },
             update: {
@@ -109,7 +113,7 @@ export async function POST(request: NextRequest) {
             },
             create: {
               studentId: attendance.studentId,
-              trainingId: attendance.trainingId,
+              sessionId: attendance.sessionId,
               status: attendance.status,
               notes: attendance.notes,
               excuseReason: attendance.excuseReason,
@@ -117,7 +121,11 @@ export async function POST(request: NextRequest) {
             },
             include: {
               student: true,
-              training: true
+              session: {
+                include: {
+                  training: true
+                }
+              }
             }
           })
         )
@@ -130,19 +138,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle single attendance creation
-    const { studentId, trainingId, status, notes, excuseReason } = data
+    const { studentId, sessionId, status, notes, excuseReason } = data
 
-    if (!studentId || !trainingId || !status) {
+    if (!studentId || !sessionId || !status) {
       return NextResponse.json(
-        { error: 'Student, training, and status are required' },
+        { error: 'Student, session, and status are required' },
         { status: 400 }
       )
     }
 
-    // Verify student and training exist
-    const [student, training] = await Promise.all([
+    // Verify student and session exist
+    const [student, session] = await Promise.all([
       prisma.student.findUnique({ where: { id: studentId } }),
-      prisma.training.findUnique({ where: { id: trainingId } })
+      prisma.trainingSession.findUnique({ where: { id: sessionId } })
     ])
 
     if (!student) {
@@ -152,18 +160,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!training) {
+    if (!session) {
       return NextResponse.json(
-        { error: 'Training not found' },
+        { error: 'Training session not found' },
         { status: 404 }
       )
     }
 
     const attendance = await prisma.attendance.upsert({
       where: {
-        studentId_trainingId: {
+        studentId_sessionId: {
           studentId,
-          trainingId
+          sessionId
         }
       },
       update: {
@@ -174,7 +182,7 @@ export async function POST(request: NextRequest) {
       },
       create: {
         studentId,
-        trainingId,
+        sessionId,
         status,
         notes,
         excuseReason,
@@ -186,9 +194,13 @@ export async function POST(request: NextRequest) {
             group: true
           }
         },
-        training: {
+        session: {
           include: {
-            group: true
+            training: {
+              include: {
+                group: true
+              }
+            }
           }
         },
         createdBy: {

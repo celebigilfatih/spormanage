@@ -31,36 +31,39 @@ export async function GET(request: NextRequest) {
       where.groupId = groupId
     }
 
-    if (startDate && endDate) {
-      where.date = {
-        gte: new Date(startDate),
-        lte: new Date(endDate)
-      }
-    } else if (upcoming) {
-      where.date = {
-        gte: new Date()
-      }
-    }
-
     const [trainings, total] = await Promise.all([
       prisma.training.findMany({
         where,
         skip,
         take: limit,
         include: {
-          group: true,
-          attendances: {
+          group: {
             include: {
-              student: true
+              _count: {
+                select: { students: true }
+              }
             }
           },
-          _count: {
-            select: {
-              attendances: true
-            }
+          sessions: {
+            where: startDate && endDate ? {
+              date: {
+                gte: new Date(startDate),
+                lte: new Date(endDate)
+              }
+            } : upcoming ? {
+              date: {
+                gte: new Date()
+              }
+            } : undefined,
+            include: {
+              _count: {
+                select: { attendances: true }
+              }
+            },
+            orderBy: { date: 'asc' }
           }
         },
-        orderBy: { date: 'desc' }
+        orderBy: { createdAt: 'desc' }
       }),
       prisma.training.count({ where })
     ])
@@ -105,15 +108,12 @@ export async function POST(request: NextRequest) {
       groupId, 
       name, 
       description, 
-      date, 
-      startTime, 
-      endTime, 
-      location 
+      sessions
     } = data
 
-    if (!groupId || !name || !date || !startTime || !endTime) {
+    if (!groupId || !name || !sessions || sessions.length === 0) {
       return NextResponse.json(
-        { error: 'Group, name, date, start time, and end time are required' },
+        { error: 'Group, name, and at least one session are required' },
         { status: 400 }
       )
     }
@@ -130,32 +130,47 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create datetime objects
-    const trainingDate = new Date(date)
-    const [startHour, startMinute] = startTime.split(':').map(Number)
-    const [endHour, endMinute] = endTime.split(':').map(Number)
-
-    const startDateTime = new Date(trainingDate)
-    startDateTime.setHours(startHour, startMinute, 0, 0)
-
-    const endDateTime = new Date(trainingDate)
-    endDateTime.setHours(endHour, endMinute, 0, 0)
-
+    // Create training with sessions
     const training = await prisma.training.create({
       data: {
         groupId,
         name,
         description,
-        date: trainingDate,
-        startTime: startDateTime,
-        endTime: endDateTime,
-        location,
+        sessions: {
+          create: sessions.map((session: any) => {
+            const trainingDate = new Date(session.date)
+            const [startHour, startMinute] = session.startTime.split(':').map(Number)
+            const [endHour, endMinute] = session.endTime.split(':').map(Number)
+
+            const startDateTime = new Date(trainingDate)
+            startDateTime.setHours(startHour, startMinute, 0, 0)
+
+            const endDateTime = new Date(trainingDate)
+            endDateTime.setHours(endHour, endMinute, 0, 0)
+
+            return {
+              date: trainingDate,
+              startTime: startDateTime,
+              endTime: endDateTime,
+              location: session.location,
+              notes: session.notes
+            }
+          })
+        }
       },
       include: {
-        group: true,
-        _count: {
-          select: {
-            attendances: true
+        group: {
+          include: {
+            _count: {
+              select: { students: true }
+            }
+          }
+        },
+        sessions: {
+          include: {
+            _count: {
+              select: { attendances: true }
+            }
           }
         }
       }

@@ -183,21 +183,35 @@ export interface Training {
   groupId: string
   name: string
   description?: string
-  date: Date
-  startTime: Date
-  endTime: Date
-  location?: string
   isActive: boolean
   createdAt: Date
   updatedAt: Date
   group?: Group
+  sessions?: TrainingSession[]
+}
+
+export interface TrainingSession {
+  id: string
+  trainingId: string
+  date: Date
+  startTime: Date
+  endTime: Date
+  location?: string
+  notes?: string
+  isCancelled: boolean
+  createdAt: Date
+  updatedAt: Date
+  training?: Training
   attendances?: Attendance[]
+  _count?: {
+    attendances: number
+  }
 }
 
 export interface Attendance {
   id: string
   studentId: string
-  trainingId: string
+  sessionId: string
   status: AttendanceStatus
   notes?: string
   excuseReason?: string
@@ -205,7 +219,7 @@ export interface Attendance {
   updatedAt: Date
   createdById: string
   student?: Student
-  training?: Training
+  session?: TrainingSession
   createdBy?: User
 }
 
@@ -284,15 +298,20 @@ export interface TrainingFormData {
   groupId: string
   name: string
   description?: string
+  sessions: TrainingSessionFormData[]
+}
+
+export interface TrainingSessionFormData {
   date: string
   startTime: string
   endTime: string
   location?: string
+  notes?: string
 }
 
 export interface AttendanceFormData {
   studentId: string
-  trainingId: string
+  sessionId: string
   status: AttendanceStatus
   notes?: string
   excuseReason?: string

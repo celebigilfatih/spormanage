@@ -27,21 +27,26 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const type = searchParams.get('type');
     const status = searchParams.get('status');
+    const method = searchParams.get('method');
     const studentId = searchParams.get('studentId');
 
     const skip = (page - 1) * limit;
 
     const where: any = {};
     
-    if (type) {
+    if (type && type !== 'all') {
       where.type = type;
     }
     
-    if (status) {
+    if (status && status !== 'all') {
       where.status = status;
     }
     
-    if (studentId) {
+    if (method && method !== 'all') {
+      where.method = method;
+    }
+    
+    if (studentId && studentId !== 'all') {
       where.studentId = studentId;
     }
 
