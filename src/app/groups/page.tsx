@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import Header from '@/components/Header'
+import AppLayout from '@/components/AppLayout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -231,19 +231,16 @@ export default function GroupsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
+      <AppLayout>
         <div className="flex items-center justify-center h-64">
           <div className="text-lg text-gray-600">Gruplar yükleniyor...</div>
         </div>
-      </div>
+      </AppLayout>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-      
+    <AppLayout>
       {/* Page Header */}
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -642,6 +639,6 @@ export default function GroupsPage() {
           </div>
         </div>
       </div>
-    </div>
+    </AppLayout>
   )
 }

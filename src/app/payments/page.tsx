@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
-import Header from '@/components/Header'
+import AppLayout from '@/components/AppLayout'
 import { PaymentForm } from '@/components/forms/PaymentForm'
 import { RecordPaymentForm } from '@/components/forms/RecordPaymentForm'
 import { Button } from '@/components/ui/button'
@@ -21,7 +21,8 @@ import {
   Calendar,
   Filter,
   Edit,
-  X
+  X,
+  Trash2
 } from 'lucide-react'
 import { Payment, Group, FeeType, PaymentStatus, PaymentMethod, UserRole } from '@/types'
 import { AuthService } from '@/lib/auth'
@@ -183,6 +184,29 @@ export default function PaymentsPage() {
     }
   }
 
+  const handleDeletePayment = async (paymentId: string) => {
+    if (!confirm('Bu ödeme kaydını silmek istediğinizden emin misiniz? Ödeme iptal edilecek ve listeden kaldırılacak.')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/payments/${paymentId}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        await fetchPayments()
+        alert('Ödeme kaydı başarıyla silindi ve iptal edildi!')
+      } else {
+        const error = await response.json()
+        alert('Hata: ' + (error.error || 'Ödeme silinemedi'))
+      }
+    } catch (error) {
+      console.error('Delete error:', error)
+      alert('Ödeme silinirken bir hata oluştu')
+    }
+  }
+
   const handleEditPayment = async (data: any) => {
     if (!selectedPayment) return
     
@@ -296,8 +320,7 @@ export default function PaymentsPage() {
   // Show forms
   if (showAddForm) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
+      <AppLayout>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Button
             variant="outline"
@@ -314,14 +337,13 @@ export default function PaymentsPage() {
             mode="create"
           />
         </div>
-      </div>
+      </AppLayout>
     )
   }
 
   if (showEditForm && selectedPayment) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
+      <AppLayout>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Button
             variant="outline"
@@ -345,14 +367,13 @@ export default function PaymentsPage() {
             mode="edit"
           />
         </div>
-      </div>
+      </AppLayout>
     )
   }
 
   if (showRecordForm && selectedPayment) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
+      <AppLayout>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Button
             variant="outline"
@@ -375,14 +396,12 @@ export default function PaymentsPage() {
             isLoading={isSubmitting}
           />
         </div>
-      </div>
+      </AppLayout>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-      
+    <AppLayout>
       {/* Page Header */}
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -576,112 +595,177 @@ export default function PaymentsPage() {
           </div>
         )}
 
-        {/* Payments List */}
-        <div className="bg-white shadow rounded-lg">
+        {/* Payments Table */}
+        <div className="bg-white shadow rounded-lg overflow-hidden">
           {loading ? (
             <div className="p-8 text-center">
-              <div className="text-lg text-gray-600">Loading payments...</div>
+              <div className="text-lg text-gray-600">Ödemeler yükleniyor...</div>
             </div>
           ) : payments.length === 0 ? (
             <div className="p-8 text-center">
               <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <div className="text-lg text-gray-600 mb-2">No payments found</div>
+              <div className="text-lg text-gray-600 mb-2">Ödeme bulunamadı</div>
               <p className="text-gray-500">
-                Try adjusting your filters or create new payment records
+                Filtrelerinizi ayarlayın veya yeni ödeme kaydı oluşturun
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-200">
-              {payments.map((payment) => (
-                <div key={payment.id} className="p-6 hover:bg-gray-50">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start space-x-4">
-                      {showBulkActions && canManagePayments && (
-                        payment.status !== PaymentStatus.PAID && 
-                        payment.status !== PaymentStatus.CANCELLED
-                      ) && (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    {showBulkActions && canManagePayments && (
+                      <th scope="col" className="px-6 py-3 text-left">
                         <input
                           type="checkbox"
-                          checked={selectedPayments.includes(payment.id)}
-                          onChange={() => togglePaymentSelection(payment.id)}
-                          className="mt-1 rounded border-gray-300"
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              selectAllPayments()
+                            } else {
+                              setSelectedPayments([])
+                            }
+                          }}
+                          className="rounded border-gray-300"
                         />
+                      </th>
+                    )}
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Öğrenci
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Ücret Tipi
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Grup
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Tutar
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Ödenen
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Kalan
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Vade Tarihi
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Durum
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      İşlemler
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {payments.map((payment) => (
+                    <tr key={payment.id} className="hover:bg-gray-50">
+                      {showBulkActions && canManagePayments && (
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {(payment.status !== PaymentStatus.PAID && payment.status !== PaymentStatus.CANCELLED) ? (
+                            <input
+                              type="checkbox"
+                              checked={selectedPayments.includes(payment.id)}
+                              onChange={() => togglePaymentSelection(payment.id)}
+                              className="rounded border-gray-300"
+                            />
+                          ) : null}
+                        </td>
                       )}
-                      
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3">
-                          <h3 className="text-lg font-medium text-gray-900">
-                            {payment.student?.firstName} {payment.student?.lastName}
-                          </h3>
-                          {getStatusBadge(payment.status)}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {payment.student?.firstName} {payment.student?.lastName}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{payment.feeType?.name}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {payment.student?.group ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {payment.student.group.name}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {formatCurrency(payment.amount)}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {payment.paidAmount ? formatCurrency(payment.paidAmount) : '-'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {payment.paidAmount ? formatCurrency(payment.amount - (payment.paidAmount || 0)) : formatCurrency(payment.amount)}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center space-x-2">
+                          <div className="text-sm text-gray-900">
+                            {new Date(payment.dueDate).toLocaleDateString('tr-TR')}
+                          </div>
                           {isOverdue(payment) && (
                             <AlertTriangle className="h-4 w-4 text-red-500" />
                           )}
                         </div>
-
-                        <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div>
-                            <p className="text-sm font-medium text-gray-600">Fee Type</p>
-                            <p className="text-sm text-gray-900">{payment.feeType?.name}</p>
-                          </div>
-                          
-                          <div>
-                            <p className="text-sm font-medium text-gray-600">Amount</p>
-                            <p className="text-sm text-gray-900">
-                              {formatCurrency(payment.paidAmount || 0)} / {formatCurrency(payment.amount)}
-                            </p>
-                          </div>
-                          
-                          <div>
-                            <p className="text-sm font-medium text-gray-600">Due Date</p>
-                            <p className="text-sm text-gray-900">
-                              {new Date(payment.dueDate).toLocaleDateString()}
-                            </p>
-                          </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {getStatusBadge(payment.status)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex justify-end space-x-2">
+                          {(payment.status === PaymentStatus.PENDING || payment.status === PaymentStatus.PARTIAL) && canManagePayments && (
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setSelectedPayment(payment)
+                                setShowRecordForm(true)
+                              }}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              Ödeme Kaydet
+                            </Button>
+                          )}
+                          {canManagePayments && (
+                            <>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedPayment(payment)
+                                  setShowEditForm(true)
+                                }}
+                                title="Düzenle"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleDeletePayment(payment.id)}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                title="Sil"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
                         </div>
-
-                        {payment.student?.group && (
-                          <div className="mt-2">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              {payment.student.group.name}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {canManagePayments && (
-                      <div className="flex space-x-2">
-                        {(payment.status === PaymentStatus.PENDING || payment.status === PaymentStatus.PARTIAL) && (
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              setSelectedPayment(payment)
-                              setShowRecordForm(true)
-                            }}
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            Ödeme Kaydet
-                          </Button>
-                        )}
-                        {payment.status !== PaymentStatus.PAID && payment.status !== PaymentStatus.CANCELLED && (
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => {
-                              setSelectedPayment(payment)
-                              setShowEditForm(true)
-                            }}
-                          >
-                            <Edit className="h-4 w-4 mr-1" />
-                            Düzenle
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
 
@@ -725,6 +809,6 @@ export default function PaymentsPage() {
           )}
         </div>
       </div>
-    </div>
+    </AppLayout>
   )
 }

@@ -72,11 +72,38 @@ export function PaymentForm({
   }, [])
 
   useEffect(() => {
-    // Auto-fill amount when fee type is selected
+    // Auto-fill amount and due date when fee type is selected
     if (feeTypeId && !initialData) {
       const selectedFeeType = feeTypes.find(ft => ft.id === feeTypeId)
       if (selectedFeeType) {
         setValue('amount', selectedFeeType.amount.toString())
+        
+        // Calculate due date based on fee period
+        const today = new Date()
+        let dueDate = new Date(today)
+        
+        switch (selectedFeeType.period) {
+          case 'MONTHLY':
+            dueDate.setMonth(dueDate.getMonth() + 1)
+            break
+          case 'QUARTERLY':
+            dueDate.setMonth(dueDate.getMonth() + 3)
+            break
+          case 'YEARLY':
+            dueDate.setFullYear(dueDate.getFullYear() + 1)
+            break
+          case 'ONE_TIME':
+            // For one-time payments, set due date to end of current month
+            dueDate.setMonth(dueDate.getMonth() + 1)
+            dueDate.setDate(0) // Last day of current month
+            break
+          default:
+            dueDate.setMonth(dueDate.getMonth() + 1)
+        }
+        
+        // Format date as YYYY-MM-DD for input
+        const formattedDate = dueDate.toISOString().split('T')[0]
+        setValue('dueDate', formattedDate)
       }
     }
   }, [feeTypeId, feeTypes, initialData, setValue])
@@ -193,6 +220,14 @@ export function PaymentForm({
           />
           {errors.dueDate && (
             <p className="text-sm text-red-600 mt-1">{errors.dueDate.message}</p>
+          )}
+          {feeTypeId && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {feeTypes.find(ft => ft.id === feeTypeId)?.period === 'MONTHLY' && 'Aylık ödeme için vade tarihi otomatik hesaplandı'}
+              {feeTypes.find(ft => ft.id === feeTypeId)?.period === 'QUARTERLY' && '3 aylık ödeme için vade tarihi otomatik hesaplandı'}
+              {feeTypes.find(ft => ft.id === feeTypeId)?.period === 'YEARLY' && 'Yıllık ödeme için vade tarihi otomatik hesaplandı'}
+              {feeTypes.find(ft => ft.id === feeTypeId)?.period === 'ONE_TIME' && 'Tek seferlik ödeme için vade tarihi ayın sonuna ayarlandı'}
+            </p>
           )}
         </div>
 

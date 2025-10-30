@@ -28,12 +28,15 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit
     const where: any = {}
 
-    if (studentId) {
-      where.studentId = studentId
+    // Exclude cancelled payments by default unless specifically requested
+    if (!status || status === 'all') {
+      where.status = { not: PaymentStatus.CANCELLED }
+    } else {
+      where.status = status
     }
 
-    if (status && status !== 'all') {
-      where.status = status
+    if (studentId) {
+      where.studentId = studentId
     }
 
     if (groupId && groupId !== 'all') {

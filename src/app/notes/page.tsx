@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import Header from '@/components/Header'
+import AppLayout from '@/components/AppLayout'
 import { NoteForm } from '@/components/notes/NoteForm'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -189,8 +189,8 @@ export default function NotesPage() {
 
   if (showNoteForm) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <AppLayout>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <NoteForm
             onSubmit={handleNoteSubmit}
             onCancel={() => {
@@ -201,14 +201,12 @@ export default function NotesPage() {
             initialData={editingNote || undefined}
           />
         </div>
-      </div>
+      </AppLayout>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-      
+    <AppLayout>
       {/* Page Header */}
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -462,6 +460,6 @@ export default function NotesPage() {
           </div>
         )}
       </div>
-    </div>
+    </AppLayout>
   )
 }

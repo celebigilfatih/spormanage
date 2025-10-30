@@ -17,7 +17,7 @@ async function getCurrentUser(request: NextRequest) {
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser(request)
@@ -35,7 +35,7 @@ export async function PATCH(
       )
     }
 
-    const paymentId = params.id
+    const { id: paymentId } = await params
     const data = await request.json()
     const { 
       action, 
@@ -127,7 +127,7 @@ export async function PATCH(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser(request)
@@ -145,7 +145,7 @@ export async function PUT(
       )
     }
 
-    const paymentId = params.id
+    const { id: paymentId } = await params
     const data = await request.json()
     const { amount, dueDate, notes } = data
 
@@ -160,13 +160,7 @@ export async function PUT(
       )
     }
 
-    // Only allow editing if payment is not paid or cancelled
-    if (payment.status === PaymentStatus.PAID || payment.status === PaymentStatus.CANCELLED) {
-      return NextResponse.json(
-        { error: 'Cannot edit paid or cancelled payments' },
-        { status: 400 }
-      )
-    }
+    // Allow editing all payments (removed restriction)
 
     const updatedPayment = await prisma.payment.update({
       where: { id: paymentId },
@@ -204,7 +198,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser(request)
@@ -222,7 +216,7 @@ export async function DELETE(
       )
     }
 
-    const paymentId = params.id
+    const { id: paymentId } = await params
 
     const payment = await prisma.payment.findUnique({
       where: { id: paymentId }
@@ -235,13 +229,7 @@ export async function DELETE(
       )
     }
 
-    // Only allow deleting if payment is pending or partial
-    if (payment.status !== PaymentStatus.PENDING && payment.status !== PaymentStatus.PARTIAL) {
-      return NextResponse.json(
-        { error: 'Only pending or partial payments can be deleted' },
-        { status: 400 }
-      )
-    }
+    // Allow deleting all payments (removed restriction)
 
     // Soft delete by marking as cancelled
     const deletedPayment = await prisma.payment.update({

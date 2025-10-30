@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Header from '@/components/Header';
+import AppLayout from '@/components/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +12,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { TrainingForm } from '@/components/trainings/TrainingForm';
 import { AttendanceTracker } from '@/components/trainings/AttendanceTracker';
 import { useToast } from '@/hooks/use-toast';
@@ -240,22 +239,62 @@ export default function TrainingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
+      <AppLayout>
         <div className="container mx-auto py-6">
           <div className="flex items-center justify-center h-64">
             <div className="text-lg">Yükleniyor...</div>
           </div>
         </div>
-      </div>
+      </AppLayout>
+    );
+  }
+
+  // Show attendance tracker as full page
+  if (showAttendanceTracker && selectedSession) {
+    return (
+      <AppLayout>
+        <div className="container mx-auto py-6 space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold">
+                Yoklama - {selectedSession.training.name}
+              </h1>
+              <p className="text-muted-foreground">
+                {selectedSession.training.group.name} • {formatDate(selectedSession.date)} {formatTime(selectedSession.startTime)}
+              </p>
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowAttendanceTracker(false);
+                setSelectedSession(null);
+              }}
+            >
+              İptal
+            </Button>
+          </div>
+
+          <Card>
+            <CardContent className="pt-6">
+              <AttendanceTracker
+                session={selectedSession as any}
+                onSubmit={handleAttendanceSubmit}
+                onCancel={() => {
+                  setShowAttendanceTracker(false);
+                  setSelectedSession(null);
+                }}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      </AppLayout>
     );
   }
 
   // Show training form as full page
   if (showTrainingForm) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
+      <AppLayout>
         <div className="container mx-auto py-6 space-y-6">
           <div className="flex justify-between items-center">
             <div>
@@ -347,14 +386,12 @@ export default function TrainingsPage() {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-      
+    <AppLayout>
       <div className="container mx-auto py-6 space-y-6">
         {/* Page Header */}
         <div className="flex justify-between items-center">
@@ -575,25 +612,7 @@ export default function TrainingsPage() {
           )}
         </CardContent>
       </Card>
-
-      {/* Attendance Tracker Dialog */}
-      <Dialog open={showAttendanceTracker} onOpenChange={setShowAttendanceTracker}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              Yoklama - {selectedSession?.training.group.name}
-            </DialogTitle>
-          </DialogHeader>
-          {selectedSession && (
-            <AttendanceTracker
-              session={selectedSession as any}
-              onSubmit={handleAttendanceSubmit}
-              onCancel={() => setShowAttendanceTracker(false)}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
       </div>
-    </div>
+    </AppLayout>
   );
 }

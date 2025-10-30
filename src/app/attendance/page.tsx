@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Header from '@/components/Header';
+import AppLayout from '@/components/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -168,8 +168,7 @@ export default function AttendancePage() {
   // Show attendance tracker
   if (showAttendanceTracker && selectedSession) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
+      <AppLayout>
         <div className="container mx-auto py-6">
           <AttendanceTracker
             session={selectedSession as any}
@@ -180,14 +179,12 @@ export default function AttendancePage() {
             }}
           />
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-      
+    <AppLayout>
       <div className="container mx-auto py-6 space-y-6">
         {/* Page Header */}
         <div>
@@ -344,6 +341,6 @@ export default function AttendancePage() {
           </Card>
         )}
       </div>
-    </div>
+    </AppLayout>
   );
 }

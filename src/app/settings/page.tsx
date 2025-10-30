@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Header from '@/components/Header';
+import AppLayout from '@/components/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,11 @@ import {
   Mail,
   Smartphone,
   Save,
-  RefreshCw
+  RefreshCw,
+  DollarSign,
+  Plus,
+  Edit2,
+  Trash2
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -37,6 +41,19 @@ interface SystemSettings {
   sessionTimeout: number;
 }
 
+interface FeeType {
+  id: string;
+  name: string;
+  amount: number;
+  period: string;
+  groupId?: string | null;
+  isActive: boolean;
+  group?: {
+    id: string;
+    name: string;
+  } | null;
+}
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<SystemSettings>({
     schoolName: 'Futbol Okulu',
@@ -55,6 +72,10 @@ export default function SettingsPage() {
   
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [feeTypes, setFeeTypes] = useState<FeeType[]>([]);
+  const [editingFeeType, setEditingFeeType] = useState<FeeType | null>(null);
+  const [newFeeType, setNewFeeType] = useState({ name: '', amount: '', period: 'MONTHLY' });
+  const [showFeeTypeForm, setShowFeeTypeForm] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -68,6 +89,7 @@ export default function SettingsPage() {
       return;
     }
     loadSettings();
+    loadFeeTypes();
   }, [isAdmin]);
 
   const loadSettings = async () => {
@@ -83,6 +105,97 @@ export default function SettingsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadFeeTypes = async () => {
+    try {
+      const response = await fetch('/api/fee-types');
+      if (response.ok) {
+        const data = await response.json();
+        setFeeTypes(data);
+      }
+    } catch (error) {
+      console.error('Failed to load fee types:', error);
+    }
+  };
+
+  const handleSaveFeeType = async () => {
+    try {
+      const feeTypeData = {
+        ...newFeeType,
+        amount: parseFloat(newFeeType.amount)
+      };
+
+      const url = editingFeeType ? `/api/fee-types/${editingFeeType.id}` : '/api/fee-types';
+      const method = editingFeeType ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(feeTypeData),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Başarılı",
+          description: editingFeeType ? "Ücret tipi güncellendi" : "Ücret tipi oluşturuldu",
+        });
+        setNewFeeType({ name: '', amount: '', period: 'MONTHLY' });
+        setEditingFeeType(null);
+        setShowFeeTypeForm(false);
+        loadFeeTypes();
+      } else {
+        throw new Error('Failed to save fee type');
+      }
+    } catch (error) {
+      toast({
+        title: "Hata",
+        description: "Ücret tipi kaydedilemedi",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditFeeType = (feeType: FeeType) => {
+    setEditingFeeType(feeType);
+    setNewFeeType({
+      name: feeType.name,
+      amount: feeType.amount.toString(),
+      period: feeType.period
+    });
+    setShowFeeTypeForm(true);
+  };
+
+  const handleDeleteFeeType = async (id: string) => {
+    if (!confirm('Bu ücret tipini silmek istediğinizden emin misiniz?')) return;
+
+    try {
+      const response = await fetch(`/api/fee-types/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Başarılı",
+          description: "Ücret tipi silindi",
+        });
+        loadFeeTypes();
+      } else {
+        throw new Error('Failed to delete fee type');
+      }
+    } catch (error) {
+      toast({
+        title: "Hata",
+        description: "Ücret tipi silinemedi",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancelFeeType = () => {
+    setShowFeeTypeForm(false);
+    setEditingFeeType(null);
+    setNewFeeType({ name: '', amount: '', period: 'MONTHLY' });
   };
 
   const handleSave = async () => {
@@ -157,8 +270,7 @@ export default function SettingsPage() {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
+      <AppLayout>
         <div className="container mx-auto py-6">
           <Card>
             <CardContent className="text-center py-8">
@@ -168,14 +280,12 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-      
+    <AppLayout>
       <div className="container mx-auto py-6 space-y-6">
         {/* Page Header */}
         <div className="flex justify-between items-center">
@@ -364,6 +474,142 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
+        {/* Fee Types Management */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5" />
+                  Ücret Tipleri
+                </CardTitle>
+                <CardDescription>
+                  Özel ücret tiplerinizi ve fiyatlarınızı tanımlayın
+                </CardDescription>
+              </div>
+              <Button
+                onClick={() => setShowFeeTypeForm(!showFeeTypeForm)}
+                size="sm"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Yeni Ücret Tipi
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {showFeeTypeForm && (
+              <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+                <h4 className="font-medium">
+                  {editingFeeType ? 'Ücret Tipini Düzenle' : 'Yeni Ücret Tipi Ekle'}
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="feeTypeName">Ücret Adı</Label>
+                    <Input
+                      id="feeTypeName"
+                      placeholder="Örn: Aylık Aidat"
+                      value={newFeeType.name}
+                      onChange={(e) => setNewFeeType(prev => ({ ...prev, name: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="feeTypeAmount">Tutar ({settings.currency})</Label>
+                    <Input
+                      id="feeTypeAmount"
+                      type="number"
+                      placeholder="0.00"
+                      step="0.01"
+                      min="0"
+                      value={newFeeType.amount}
+                      onChange={(e) => setNewFeeType(prev => ({ ...prev, amount: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="feeTypePeriod">Periyot</Label>
+                    <Select
+                      value={newFeeType.period}
+                      onValueChange={(value) => setNewFeeType(prev => ({ ...prev, period: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="MONTHLY">Aylık</SelectItem>
+                        <SelectItem value="QUARTERLY">3 Aylık</SelectItem>
+                        <SelectItem value="YEARLY">Yıllık</SelectItem>
+                        <SelectItem value="ONE_TIME">Tek Seferlik</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button variant="outline" onClick={handleCancelFeeType}>
+                    İptal
+                  </Button>
+                  <Button
+                    onClick={handleSaveFeeType}
+                    disabled={!newFeeType.name || !newFeeType.amount}
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    {editingFeeType ? 'Güncelle' : 'Kaydet'}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {feeTypes.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <DollarSign className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>Henüz ücret tipi tanımlanmamış</p>
+                <p className="text-sm">Yeni ücret tipi eklemek için yukarıdaki butonu kullanın</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {feeTypes.map((feeType) => (
+                  <div
+                    key={feeType.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex-1">
+                      <h4 className="font-medium">{feeType.name}</h4>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                        <span className="font-semibold text-primary">
+                          {feeType.amount.toLocaleString('tr-TR')} {settings.currency}
+                        </span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800">
+                          {feeType.period === 'MONTHLY' && 'Aylık'}
+                          {feeType.period === 'QUARTERLY' && '3 Aylık'}
+                          {feeType.period === 'YEARLY' && 'Yıllık'}
+                          {feeType.period === 'ONE_TIME' && 'Tek Seferlik'}
+                        </span>
+                        {feeType.group && (
+                          <span className="text-xs">Grup: {feeType.group.name}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditFeeType(feeType)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteFeeType(feeType.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Backup Settings */}
         <Card>
           <CardHeader>
@@ -437,6 +683,6 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
       </div>
-    </div>
+    </AppLayout>
   );
 }

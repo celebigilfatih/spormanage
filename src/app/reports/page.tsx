@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Header from '@/components/Header';
+import AppLayout from '@/components/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -127,21 +127,18 @@ export default function ReportsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
+      <AppLayout>
         <div className="container mx-auto py-6">
           <div className="flex items-center justify-center h-64">
             <div className="text-lg">Raporlar yükleniyor...</div>
           </div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-      
+    <AppLayout>
       <div className="container mx-auto py-6 space-y-6">
       {/* Page Header */}
       <div className="flex justify-between items-center">
@@ -416,6 +413,6 @@ export default function ReportsPage() {
         </>
       )}
       </div>
-    </div>
+    </AppLayout>
   );
 }

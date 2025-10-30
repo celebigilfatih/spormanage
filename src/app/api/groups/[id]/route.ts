@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { AuthService } from '@/lib/auth'
 
@@ -16,10 +17,10 @@ async function getCurrentUser(request: NextRequest) {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const groupId = params.id
+    const { id: groupId } = await params
 
     const group = await prisma.group.findUnique({
       where: { id: groupId },
@@ -45,15 +46,6 @@ export async function GET(
           ]
         },
         feeTypes: true,
-        trainings: {
-          where: {
-            date: {
-              gte: new Date(new Date().getTime() - 30 * 24 * 60 * 60 * 1000) // Last 30 days
-            }
-          },
-          orderBy: { date: 'desc' },
-          take: 10
-        },
         _count: {
           select: {
             students: true
@@ -81,7 +73,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser(request)
@@ -99,7 +91,7 @@ export async function PUT(
       )
     }
 
-    const groupId = params.id
+    const { id: groupId } = await params
     const { name, description } = await request.json()
 
     if (!name) {
@@ -165,7 +157,7 @@ export async function PUT(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser(request)
@@ -183,7 +175,7 @@ export async function PATCH(
       )
     }
 
-    const groupId = params.id
+    const { id: groupId } = await params
     const data = await request.json()
 
     const group = await prisma.group.findUnique({
@@ -228,7 +220,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser(request)
@@ -246,7 +238,7 @@ export async function DELETE(
       )
     }
 
-    const groupId = params.id
+    const { id: groupId } = await params
 
     const group = await prisma.group.findUnique({
       where: { id: groupId },
