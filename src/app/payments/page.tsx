@@ -465,7 +465,7 @@ export default function PaymentsPage() {
             <div className="flex items-center">
               <AlertTriangle className="h-8 w-8 text-red-600" />
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Overdue</p>
+                <p className="text-sm font-medium text-gray-600">Gecikmiş</p>
                 <p className="text-2xl font-bold text-gray-900">
                   {summary.overdueCount}
                 </p>
@@ -477,7 +477,7 @@ export default function PaymentsPage() {
             <div className="flex items-center">
               <CreditCard className="h-8 w-8 text-blue-600" />
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Payments</p>
+                <p className="text-sm font-medium text-gray-600">Toplam Ödeme</p>
                 <p className="text-2xl font-bold text-gray-900">
                   {summary.totalCount}
                 </p>
@@ -491,32 +491,32 @@ export default function PaymentsPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Status
+                Durum
               </label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger>
                   <SelectValue placeholder="Tüm durumlar" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  <SelectItem value={PaymentStatus.PENDING}>Pending</SelectItem>
-                  <SelectItem value={PaymentStatus.PARTIAL}>Partial</SelectItem>
-                  <SelectItem value={PaymentStatus.PAID}>Paid</SelectItem>
-                  <SelectItem value={PaymentStatus.OVERDUE}>Overdue</SelectItem>
+                  <SelectItem value="all">Tüm durumlar</SelectItem>
+                  <SelectItem value={PaymentStatus.PENDING}>Bekliyor</SelectItem>
+                  <SelectItem value={PaymentStatus.PARTIAL}>Kısmi</SelectItem>
+                  <SelectItem value={PaymentStatus.PAID}>Ödendi</SelectItem>
+                  <SelectItem value={PaymentStatus.OVERDUE}>Gecikmiş</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Group
+                Grup
               </label>
               <Select value={groupFilter} onValueChange={setGroupFilter}>
                 <SelectTrigger>
                   <SelectValue placeholder="Tüm gruplar" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All groups</SelectItem>
+                  <SelectItem value="all">Tüm gruplar</SelectItem>
                   {groups.map((group) => (
                     <SelectItem key={group.id} value={group.id}>
                       {group.name}
@@ -536,7 +536,7 @@ export default function PaymentsPage() {
                   className="rounded border-gray-300"
                 />
                 <label htmlFor="overdue" className="text-sm font-medium text-gray-700">
-                  Show overdue only
+                  Sadece gecikmişleri göster
                 </label>
               </div>
             </div>
@@ -552,7 +552,7 @@ export default function PaymentsPage() {
                 variant="outline"
                 className="w-full"
               >
-                Reset Filters
+                Filtreleri Sıfırla
               </Button>
             </div>
           </div>
@@ -564,14 +564,14 @@ export default function PaymentsPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <span className="text-sm font-medium text-blue-900">
-                  {selectedPayments.length} payments selected
+                  {selectedPayments.length} ödeme seçildi
                 </span>
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={selectAllPayments}
                 >
-                  Select All Pending
+                  Tüm Bekleyenleri Seç
                 </Button>
               </div>
               <div className="flex space-x-2">
@@ -581,14 +581,14 @@ export default function PaymentsPage() {
                   disabled={!selectedPayments.length}
                   className="bg-green-600 hover:bg-green-700"
                 >
-                  Mark as Paid
+                  Ödendi Olarak İşaretle
                 </Button>
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => setSelectedPayments([])}
                 >
-                  Clear Selection
+                  Seçimi Temizle
                 </Button>
               </div>
             </div>
@@ -778,23 +778,37 @@ export default function PaymentsPage() {
                   onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                   disabled={currentPage === 1}
                 >
-                  Previous
+                  Önceki
                 </Button>
                 
                 <div className="flex space-x-2">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    const page = Math.max(1, Math.min(totalPages, currentPage - 2 + i))
-                    return (
-                      <Button
-                        key={page}
-                        variant={page === currentPage ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setCurrentPage(page)}
-                      >
-                        {page}
-                      </Button>
-                    )
-                  })}
+                  {(() => {
+                    const pages = []
+                    const maxPages = Math.min(5, totalPages)
+                    
+                    let startPage = Math.max(1, currentPage - Math.floor(maxPages / 2))
+                    let endPage = Math.min(totalPages, startPage + maxPages - 1)
+                    
+                    // Adjust start page if we're near the end
+                    if (endPage - startPage + 1 < maxPages) {
+                      startPage = Math.max(1, endPage - maxPages + 1)
+                    }
+                    
+                    for (let i = startPage; i <= endPage; i++) {
+                      pages.push(
+                        <Button
+                          key={i}
+                          variant={i === currentPage ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(i)}
+                        >
+                          {i}
+                        </Button>
+                      )
+                    }
+                    
+                    return pages
+                  })()}
                 </div>
 
                 <Button
@@ -802,7 +816,7 @@ export default function PaymentsPage() {
                   onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                   disabled={currentPage === totalPages}
                 >
-                  Next
+                  Sonraki
                 </Button>
               </div>
             </div>

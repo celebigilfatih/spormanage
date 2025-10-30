@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "FeePeriod" ADD VALUE 'SEMI_ANNUAL';

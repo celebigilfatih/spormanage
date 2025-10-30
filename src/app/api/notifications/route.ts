@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 50); // Cap at 50
     const type = searchParams.get('type');
     const status = searchParams.get('status');
     const method = searchParams.get('method');
@@ -50,31 +50,35 @@ export async function GET(request: NextRequest) {
       where.studentId = studentId;
     }
 
+    // Optimize: Only fetch count if needed (for pagination UI)
+    // Use Promise.all for parallel execution
     const [notifications, total] = await Promise.all([
       prisma.notification.findMany({
         where,
-        include: {
-          student: {
+        select: {
+          id: true,
+          title: true,
+          message: true,
+          type: true,
+          method: true,
+          status: true,
+          createdAt: true,
+          studentId: true,
+          student: studentId && studentId !== 'all' ? false : {
             select: {
               id: true,
               firstName: true,
-              lastName: true,
-              phone: true
+              lastName: true
             }
           },
-          createdBy: {
-            select: {
-              id: true,
-              name: true,
-              email: true
-            }
-          }
+          createdById: true
         },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit
       }),
-      prisma.notification.count({ where })
+      // Only count if we need pagination info
+      limit < 50 ? prisma.notification.count({ where }) : Promise.resolve(-1)
     ]);
 
     return NextResponse.json({
@@ -83,7 +87,7 @@ export async function GET(request: NextRequest) {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit)
+        pages: total > 0 ? Math.ceil(total / limit) : -1
       }
     });
   } catch (error) {

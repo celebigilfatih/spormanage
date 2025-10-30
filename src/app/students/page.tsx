@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Plus, Search, Users, Phone, Mail, Calendar, MapPin, Eye, Edit2 } from 'lucide-react'
+import { Plus, Search, Users, Phone, Mail, Calendar, MapPin, Eye, Edit2, Trash2, Power } from 'lucide-react'
 import { Student, Group, StudentFormData, UserRole } from '@/types'
 import { AuthService } from '@/lib/auth'
 
@@ -26,7 +26,7 @@ export default function StudentsPage() {
   // Filters
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedGroup, setSelectedGroup] = useState('all')
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('active') // Default to active students only
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -135,14 +135,85 @@ export default function StudentsPage() {
     }
   }
 
+  const handleDeleteStudent = async (student: Student) => {
+    if (!confirm(`${student.firstName} ${student.lastName} adlı öğrenciyi silmek istediğinizden emin misiniz? Bu işlem öğrenciyi pasif duruma getirecektir.`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/students/${student.id}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        await fetchStudents()
+        alert('Öğrenci başarıyla silindi!')
+      } else {
+        const error = await response.json()
+        alert('Hata: ' + (error.error || 'Öğrenci silinemedi'))
+      }
+    } catch (error) {
+      console.error('Delete error:', error)
+      alert('Öğrenci silinirken bir hata oluştu')
+    }
+  }
+
+  const handleToggleStatus = async (student: Student) => {
+    const action = student.isActive ? 'pasife' : 'aktife'
+    if (!confirm(`${student.firstName} ${student.lastName} adlı öğrenciyi ${action} çekmek istediğinize emin misiniz?`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/students/${student.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firstName: student.firstName,
+          lastName: student.lastName,
+          phone: student.phone,
+          birthDate: student.birthDate,
+          groupId: student.group?.id,
+          isActive: !student.isActive,
+          parents: [] // Empty array, API will skip parent updates if empty
+        }),
+      })
+
+      if (response.ok) {
+        await fetchStudents()
+        alert(`Öğrenci başarıyla ${action} çekildi!`)
+      } else {
+        const error = await response.json()
+        alert('Hata: ' + (error.error || 'Durum güncellenemedi'))
+      }
+    } catch (error) {
+      console.error('Toggle status error:', error)
+      alert('Durum güncellenirken bir hata oluştu')
+    }
+  }
+
   const handleViewDetails = (student: Student) => {
     setSelectedStudent(student)
     setShowDetailModal(true)
   }
 
-  const handleEditStudent = (student: Student) => {
-    setSelectedStudent(student)
-    setShowEditModal(true)
+  const handleEditStudent = async (student: Student) => {
+    // Fetch complete student data including all parent fields
+    try {
+      const response = await fetch(`/api/students/${student.id}`)
+      if (response.ok) {
+        const fullStudent = await response.json()
+        setSelectedStudent(fullStudent)
+        setShowEditModal(true)
+      } else {
+        alert('Öğrenci bilgileri yüklenemedi')
+      }
+    } catch (error) {
+      console.error('Failed to fetch student details:', error)
+      alert('Öğrenci bilgileri yüklenirken hata oluştu')
+    }
   }
 
   const handleSearch = (e: React.FormEvent) => {
@@ -154,7 +225,7 @@ export default function StudentsPage() {
   const resetFilters = () => {
     setSearchTerm('')
     setSelectedGroup('all')
-    setStatusFilter('all')
+    setStatusFilter('active') // Reset to active students
     setCurrentPage(1)
   }
 
@@ -287,11 +358,11 @@ export default function StudentsPage() {
           </div>
         </div>
 
-        {/* Students List */}
-        <div className="bg-white shadow rounded-lg">
+        {/* Students Table */}
+        <div className="bg-white shadow rounded-lg overflow-hidden">
           {loading ? (
             <div className="p-8 text-center">
-              <div className="text-lg text-gray-600">Öğrenciler yüklenriyor...</div>
+              <div className="text-lg text-gray-600">Öğrenciler yükleniyor...</div>
             </div>
           ) : students.length === 0 ? (
             <div className="p-8 text-center">
@@ -313,113 +384,176 @@ export default function StudentsPage() {
               )}
             </div>
           ) : (
-            <div className="divide-y divide-gray-200">
-              {students.map((student) => (
-                <div key={student.id} className="p-6 hover:bg-gray-50">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3">
-                        <h3 className="text-lg font-medium text-gray-900">
-                          {student.firstName} {student.lastName}
-                        </h3>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          student.isActive 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {student.isActive ? 'Aktif' : 'Pasif'}
-                        </span>
-                        {student.group && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {student.group.name}
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Öğrenci
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Grup
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      İletişim
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Veli
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Durum
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      İstatistikler
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      İşlemler
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {students.map((student) => {
+                    const primaryParent = student.parents?.find(p => p.isPrimary) || student.parents?.[0]
+                    
+                    return (
+                      <tr key={student.id} className="hover:bg-gray-50">
+                        {/* Student Name */}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {student.firstName} {student.lastName}
+                              </div>
+                              {student.phone && (
+                                <div className="text-sm text-gray-500">
+                                  <Phone className="inline h-3 w-3 mr-1" />
+                                  {student.phone}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Group */}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {student.group ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              {student.group.name}
+                            </span>
+                          ) : (
+                            <span className="text-sm text-gray-400">-</span>
+                          )}
+                        </td>
+
+                        {/* Contact Info */}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {student.birthDate && (
+                              <div className="flex items-center">
+                                <Calendar className="h-3 w-3 mr-1" />
+                                {new Date(student.birthDate).toLocaleDateString('tr-TR')}
+                              </div>
+                            )}
+                            <div className="flex items-center text-gray-500">
+                              Kayıt: {new Date(student.enrollmentDate).toLocaleDateString('tr-TR')}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Parent Info */}
+                        <td className="px-6 py-4">
+                          {primaryParent ? (
+                            <div className="text-sm">
+                              <div className="font-medium text-gray-900">
+                                {primaryParent.firstName} {primaryParent.lastName}
+                              </div>
+                              <div className="text-gray-500">
+                                <Phone className="inline h-3 w-3 mr-1" />
+                                {primaryParent.phone}
+                              </div>
+                              {primaryParent.email && (
+                                <div className="text-gray-500">
+                                  <Mail className="inline h-3 w-3 mr-1" />
+                                  {primaryParent.email}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-sm text-gray-400">-</span>
+                          )}
+                        </td>
+
+                        {/* Status */}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            student.isActive 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {student.isActive ? 'Aktif' : 'Pasif'}
                           </span>
-                        )}
-                      </div>
+                        </td>
 
-                      <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Student Info */}
-                        <div className="space-y-1">
-                          {student.phone && (
-                            <div className="flex items-center text-sm text-gray-600">
-                              <Phone className="h-4 w-4 mr-2" />
-                              {student.phone}
+                        {/* Statistics */}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {student._count && (
+                            <div className="text-sm text-gray-600">
+                              <div>Ödeme: {student._count.payments}</div>
+                              <div>Not: {student._count.notes}</div>
+                              <div>Devam: {student._count.attendances}</div>
                             </div>
                           )}
-                          {student.birthDate && (
-                            <div className="flex items-center text-sm text-gray-600">
-                              <Calendar className="h-4 w-4 mr-2" />
-                              {new Date(student.birthDate).toLocaleDateString()}
-                            </div>
-                          )}
-                          <div className="flex items-center text-sm text-gray-600">
-                            <Users className="h-4 w-4 mr-2" />
-                            Kayıt: {new Date(student.enrollmentDate).toLocaleDateString()}
+                        </td>
+
+                        {/* Actions */}
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex justify-end space-x-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleViewDetails(student)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            {canManageStudents && (
+                              <>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleEditStudent(student)}
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleToggleStatus(student)}
+                                  className={student.isActive 
+                                    ? "text-orange-600 hover:text-orange-700 hover:border-orange-300" 
+                                    : "text-green-600 hover:text-green-700 hover:border-green-300"
+                                  }
+                                  title={student.isActive ? 'Pasife Çek' : 'Aktife Çek'}
+                                >
+                                  <Power className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleDeleteStudent(student)}
+                                  className="text-red-600 hover:text-red-700 hover:border-red-300"
+                                  title="Sil"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
                           </div>
-                        </div>
-
-                        {/* Primary Parent Info */}
-                        {student.parents && student.parents.length > 0 && (
-                          <div className="space-y-1">
-                            {(() => {
-                              const primaryParent = student.parents.find(p => p.isPrimary) || student.parents[0]
-                              return (
-                                <>
-                                  <div className="text-sm font-medium text-gray-900">
-                                    Ana İletişim: {primaryParent.firstName} {primaryParent.lastName}
-                                  </div>
-                                  <div className="flex items-center text-sm text-gray-600">
-                                    <Phone className="h-4 w-4 mr-2" />
-                                    {primaryParent.phone}
-                                  </div>
-                                  {primaryParent.email && (
-                                    <div className="flex items-center text-sm text-gray-600">
-                                      <Mail className="h-4 w-4 mr-2" />
-                                      {primaryParent.email}
-                                    </div>
-                                  )}
-                                  <div className="text-sm text-gray-600">
-                                    Yakınlık: {primaryParent.relationship}
-                                  </div>
-                                </>
-                              )
-                            })()}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Summary Stats */}
-                      {student._count && (
-                        <div className="mt-4 flex space-x-6 text-sm text-gray-600">
-                          <span>Ödemeler: {student._count.payments}</span>
-                          <span>Notlar: {student._count.notes}</span>
-                          <span>Devamım: {student._count.attendances}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex space-x-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleViewDetails(student)}
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        Detayları Gör
-                      </Button>
-                      {canManageStudents && (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleEditStudent(student)}
-                        >
-                          <Edit2 className="h-4 w-4 mr-1" />
-                          Düzenle
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
 
@@ -436,19 +570,33 @@ export default function StudentsPage() {
                 </Button>
                 
                 <div className="flex space-x-2">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    const page = Math.max(1, Math.min(totalPages, currentPage - 2 + i))
-                    return (
-                      <Button
-                        key={page}
-                        variant={page === currentPage ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setCurrentPage(page)}
-                      >
-                        {page}
-                      </Button>
-                    )
-                  })}
+                  {(() => {
+                    const pages = []
+                    const maxPages = Math.min(5, totalPages)
+                    
+                    let startPage = Math.max(1, currentPage - Math.floor(maxPages / 2))
+                    let endPage = Math.min(totalPages, startPage + maxPages - 1)
+                    
+                    // Adjust start page if we're near the end
+                    if (endPage - startPage + 1 < maxPages) {
+                      startPage = Math.max(1, endPage - maxPages + 1)
+                    }
+                    
+                    for (let i = startPage; i <= endPage; i++) {
+                      pages.push(
+                        <Button
+                          key={i}
+                          variant={i === currentPage ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(i)}
+                        >
+                          {i}
+                        </Button>
+                      )
+                    }
+                    
+                    return pages
+                  })()}
                 </div>
 
                 <Button

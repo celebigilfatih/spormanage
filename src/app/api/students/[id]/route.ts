@@ -17,11 +17,13 @@ async function getCurrentUser(request: NextRequest) {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
+    
     const student = await prisma.student.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         group: true,
         parents: true,
@@ -57,7 +59,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser(request)
@@ -76,6 +78,7 @@ export async function PUT(
       )
     }
 
+    const { id } = await params
     const data = await request.json()
     const { 
       firstName, 
@@ -83,6 +86,7 @@ export async function PUT(
       phone, 
       birthDate, 
       groupId, 
+      isActive,
       parents 
     } = data
 
@@ -108,13 +112,14 @@ export async function PUT(
     const updatedStudent = await prisma.$transaction(async (tx) => {
       // Update student basic info
       const student = await tx.student.update({
-        where: { id: params.id },
+        where: { id },
         data: {
           firstName,
           lastName,
           phone,
           birthDate: birthDate ? new Date(birthDate) : null,
           groupId: groupId || null,
+          isActive: isActive !== undefined ? isActive : true,
         }
       })
 
@@ -125,7 +130,7 @@ export async function PUT(
           where: {
             students: {
               some: {
-                id: params.id
+                id
               }
             }
           }
@@ -137,7 +142,7 @@ export async function PUT(
             where: { id: parent.id },
             data: {
               students: {
-                disconnect: { id: params.id }
+                disconnect: { id }
               }
             }
           })
@@ -177,7 +182,7 @@ export async function PUT(
                 isEmergency: parentData.isEmergency || false,
                 isPrimary: parentData.isPrimary || false,
                 students: {
-                  connect: { id: params.id }
+                  connect: { id }
                 }
               }
             })
@@ -194,7 +199,7 @@ export async function PUT(
                 isEmergency: parentData.isEmergency || false,
                 isPrimary: parentData.isPrimary || false,
                 students: {
-                  connect: { id: params.id }
+                  connect: { id }
                 }
               }
             })
@@ -229,7 +234,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser(request)
@@ -240,17 +245,19 @@ export async function DELETE(
       )
     }
 
-    // Check permissions (only admin can delete)
-    if (!AuthService.isAdmin(user.role as any)) {
+    // Check permissions
+    if (!AuthService.canManageStudents(user.role as any)) {
       return NextResponse.json(
         { error: 'Insufficient permissions' },
         { status: 403 }
       )
     }
 
+    const { id } = await params
+
     // Soft delete - just mark as inactive
     await prisma.student.update({
-      where: { id: params.id },
+      where: { id },
       data: { isActive: false }
     })
 

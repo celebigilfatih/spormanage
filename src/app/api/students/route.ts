@@ -47,14 +47,38 @@ export async function GET(request: NextRequest) {
       where.isActive = false
     }
 
+    // Optimize query by selecting only necessary fields
     const [students, total] = await Promise.all([
       prisma.student.findMany({
         where,
         skip,
         take: limit,
-        include: {
-          group: true,
-          parents: true,
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          phone: true,
+          birthDate: true,
+          isActive: true,
+          enrollmentDate: true,
+          group: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
+          parents: {
+            where: { isPrimary: true },
+            take: 1,
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              phone: true,
+              email: true,
+              relationship: true
+            }
+          },
           _count: {
             select: {
               payments: true,
@@ -134,7 +158,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create student with parents in a transaction
-    const student = await prisma.$transaction(async (tx: typeof prisma) => {
+    const student = await prisma.$transaction(async (tx) => {
       // Create student
       const newStudent = await tx.student.create({
         data: {
@@ -148,7 +172,7 @@ export async function POST(request: NextRequest) {
       })
 
       // Create parents
-      const createdParents = await Promise.all(
+      await Promise.all(
         parents.map((parent: any) =>
           tx.parent.create({
             data: {

@@ -31,6 +31,7 @@ interface GroupWithStats extends Group {
 export default function GroupsPage() {
   const { user } = useAuth()
   const [groups, setGroups] = useState<GroupWithStats[]>([])
+  const [trainers, setTrainers] = useState<any[]>([])
   const [selectedGroup, setSelectedGroup] = useState<GroupWithStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -43,7 +44,9 @@ export default function GroupsPage() {
   // Form states
   const [groupForm, setGroupForm] = useState({
     name: '',
-    description: ''
+    description: '',
+    coachId: '',
+    assistantCoachId: ''
   })
   const [transferForm, setTransferForm] = useState({
     newGroupId: '',
@@ -54,6 +57,7 @@ export default function GroupsPage() {
 
   useEffect(() => {
     fetchGroups()
+    fetchTrainers()
   }, [])
 
   const fetchGroups = async () => {
@@ -72,6 +76,18 @@ export default function GroupsPage() {
       console.error('Failed to fetch groups:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchTrainers = async () => {
+    try {
+      const response = await fetch('/api/trainers')
+      if (response.ok) {
+        const data = await response.json()
+        setTrainers(data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch trainers:', error)
     }
   }
 
@@ -102,7 +118,7 @@ export default function GroupsPage() {
       if (response.ok) {
         setShowEditForm(false)
         setEditingGroup(null)
-        setGroupForm({ name: '', description: '' })
+        setGroupForm({ name: '', description: '', coachId: '', assistantCoachId: '' })
         fetchGroups()
         // TODO: Show success toast
       } else {
@@ -194,7 +210,9 @@ export default function GroupsPage() {
     setEditingGroup(group)
     setGroupForm({
       name: group.name,
-      description: group.description || ''
+      description: group.description || '',
+      coachId: (group as any).coachId || '',
+      assistantCoachId: (group as any).assistantCoachId || ''
     })
     setShowEditForm(true)
   }
@@ -213,7 +231,7 @@ export default function GroupsPage() {
 
       if (response.ok) {
         setShowCreateForm(false)
-        setGroupForm({ name: '', description: '' })
+        setGroupForm({ name: '', description: '', coachId: '', assistantCoachId: '' })
         fetchGroups()
         // TODO: Show success toast
       } else {
@@ -289,6 +307,42 @@ export default function GroupsPage() {
                   placeholder="Grup hakkında kısa açıklama"
                 />
               </div>
+              <div>
+                <Label htmlFor="coachId">Antrenör</Label>
+                <Select
+                  value={groupForm.coachId}
+                  onValueChange={(value) => setGroupForm({ ...groupForm, coachId: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Antrenör seçin (opsiyonel)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {trainers.filter(t => t.isActive).map((trainer) => (
+                      <SelectItem key={trainer.id} value={trainer.id}>
+                        {trainer.name} - {trainer.position}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="assistantCoachId">Yardımcı Antrenör</Label>
+                <Select
+                  value={groupForm.assistantCoachId}
+                  onValueChange={(value) => setGroupForm({ ...groupForm, assistantCoachId: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Yardımcı antrenör seçin (opsiyonel)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {trainers.filter(t => t.isActive && t.id !== groupForm.coachId).map((trainer) => (
+                      <SelectItem key={trainer.id} value={trainer.id}>
+                        {trainer.name} - {trainer.position}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="flex justify-end space-x-3">
                 <Button
                   type="button"
@@ -336,6 +390,42 @@ export default function GroupsPage() {
                   placeholder="Grup hakkında kısa açıklama"
                 />
               </div>
+              <div>
+                <Label htmlFor="editCoachId">Antrenör</Label>
+                <Select
+                  value={groupForm.coachId}
+                  onValueChange={(value) => setGroupForm({ ...groupForm, coachId: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Antrenör seçin (opsiyonel)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {trainers.filter(t => t.isActive).map((trainer) => (
+                      <SelectItem key={trainer.id} value={trainer.id}>
+                        {trainer.name} - {trainer.position}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="editAssistantCoachId">Yardımcı Antrenör</Label>
+                <Select
+                  value={groupForm.assistantCoachId}
+                  onValueChange={(value) => setGroupForm({ ...groupForm, assistantCoachId: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Yardımcı antrenör seçin (opsiyonel)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {trainers.filter(t => t.isActive && t.id !== groupForm.coachId).map((trainer) => (
+                      <SelectItem key={trainer.id} value={trainer.id}>
+                        {trainer.name} - {trainer.position}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="flex justify-end space-x-3">
                 <Button
                   type="button"
@@ -343,7 +433,7 @@ export default function GroupsPage() {
                   onClick={() => {
                     setShowEditForm(false)
                     setEditingGroup(null)
-                    setGroupForm({ name: '', description: '' })
+                    setGroupForm({ name: '', description: '', coachId: '', assistantCoachId: '' })
                   }}
                   disabled={isSubmitting}
                 >
@@ -510,6 +600,26 @@ export default function GroupsPage() {
                       {selectedGroup.description && (
                         <p className="text-gray-600 mt-1">{selectedGroup.description}</p>
                       )}
+                      
+                      {/* Coach Information */}
+                      <div className="mt-3 space-y-1">
+                        {(selectedGroup as any).coach && (
+                          <div className="flex items-center text-sm text-gray-600">
+                            <UserCheck className="h-4 w-4 mr-2" />
+                            <span className="font-medium">Antrenör:</span>
+                            <span className="ml-2">{(selectedGroup as any).coach.name}</span>
+                            <span className="ml-1 text-gray-500">({(selectedGroup as any).coach.position})</span>
+                          </div>
+                        )}
+                        {(selectedGroup as any).assistantCoach && (
+                          <div className="flex items-center text-sm text-gray-600">
+                            <UserCheck className="h-4 w-4 mr-2" />
+                            <span className="font-medium">Yardımcı Antrenör:</span>
+                            <span className="ml-2">{(selectedGroup as any).assistantCoach.name}</span>
+                            <span className="ml-1 text-gray-500">({(selectedGroup as any).assistantCoach.position})</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     {canManageGroups && (
                       <div className="flex space-x-2">

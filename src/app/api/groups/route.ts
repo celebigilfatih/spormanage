@@ -7,6 +7,20 @@ export async function GET() {
       where: { isActive: true },
       orderBy: { name: 'asc' },
       include: {
+        coach: {
+          select: {
+            id: true,
+            name: true,
+            position: true
+          }
+        },
+        assistantCoach: {
+          select: {
+            id: true,
+            name: true,
+            position: true
+          }
+        },
         _count: {
           select: { students: true }
         }
@@ -25,7 +39,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, description } = await request.json()
+    const { name, description, coachId, assistantCoachId } = await request.json()
 
     if (!name) {
       return NextResponse.json(
@@ -49,6 +63,24 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         description,
+        coachId: coachId || null,
+        assistantCoachId: assistantCoachId || null,
+      },
+      include: {
+        coach: {
+          select: {
+            id: true,
+            name: true,
+            position: true
+          }
+        },
+        assistantCoach: {
+          select: {
+            id: true,
+            name: true,
+            position: true
+          }
+        }
       }
     })
 

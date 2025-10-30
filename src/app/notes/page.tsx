@@ -434,19 +434,33 @@ export default function NotesPage() {
               </Button>
               
               <div className="flex space-x-2">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  const page = Math.max(1, Math.min(totalPages, currentPage - 2 + i))
-                  return (
-                    <Button
-                      key={page}
-                      variant={page === currentPage ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setCurrentPage(page)}
-                    >
-                      {page}
-                    </Button>
-                  )
-                })}
+                {(() => {
+                  const pages = []
+                  const maxPages = Math.min(5, totalPages)
+                  
+                  let startPage = Math.max(1, currentPage - Math.floor(maxPages / 2))
+                  let endPage = Math.min(totalPages, startPage + maxPages - 1)
+                  
+                  // Adjust start page if we're near the end
+                  if (endPage - startPage + 1 < maxPages) {
+                    startPage = Math.max(1, endPage - maxPages + 1)
+                  }
+                  
+                  for (let i = startPage; i <= endPage; i++) {
+                    pages.push(
+                      <Button
+                        key={i}
+                        variant={i === currentPage ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(i)}
+                      >
+                        {i}
+                      </Button>
+                    )
+                  }
+                  
+                  return pages
+                })()}
               </div>
 
               <Button

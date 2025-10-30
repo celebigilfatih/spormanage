@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { AuthService } from '@/lib/auth'
 
@@ -25,6 +24,22 @@ export async function GET(
     const group = await prisma.group.findUnique({
       where: { id: groupId },
       include: {
+        coach: {
+          select: {
+            id: true,
+            name: true,
+            position: true,
+            license: true
+          }
+        },
+        assistantCoach: {
+          select: {
+            id: true,
+            name: true,
+            position: true,
+            license: true
+          }
+        },
         students: {
           where: { isActive: true },
           include: {
@@ -92,7 +107,7 @@ export async function PUT(
     }
 
     const { id: groupId } = await params
-    const { name, description } = await request.json()
+    const { name, description, coachId, assistantCoachId } = await request.json()
 
     if (!name) {
       return NextResponse.json(
@@ -132,8 +147,24 @@ export async function PUT(
       data: {
         name,
         description: description || null,
+        coachId: coachId || null,
+        assistantCoachId: assistantCoachId || null,
       },
       include: {
+        coach: {
+          select: {
+            id: true,
+            name: true,
+            position: true
+          }
+        },
+        assistantCoach: {
+          select: {
+            id: true,
+            name: true,
+            position: true
+          }
+        },
         students: {
           where: { isActive: true }
         },
@@ -245,7 +276,9 @@ export async function DELETE(
       include: {
         _count: {
           select: {
-            students: true
+            students: true,
+            trainings: true,
+            feeTypes: true
           }
         }
       }
@@ -258,17 +291,60 @@ export async function DELETE(
       )
     }
 
-    // Remove students from group before deleting
-    if (group._count.students > 0) {
-      await prisma.student.updateMany({
-        where: { groupId },
-        data: { groupId: null }
-      })
-    }
+    // Use transaction to delete all related records
+    await prisma.$transaction(async (tx) => {
+      // 1. Remove students from group
+      if (group._count.students > 0) {
+        await tx.student.updateMany({
+          where: { groupId },
+          data: { groupId: null }
+        })
+      }
 
-    // Delete the group
-    await prisma.group.delete({
-      where: { id: groupId }
+      // 2. Delete all trainings and their sessions/attendances
+      if (group._count.trainings > 0) {
+        const trainings = await tx.training.findMany({
+          where: { groupId },
+          select: { id: true }
+        })
+
+        for (const training of trainings) {
+          // Delete attendance records for all sessions of this training
+          const sessions = await tx.trainingSession.findMany({
+            where: { trainingId: training.id },
+            select: { id: true }
+          })
+
+          for (const session of sessions) {
+            await tx.attendance.deleteMany({
+              where: { sessionId: session.id }
+            })
+          }
+
+          // Delete all sessions
+          await tx.trainingSession.deleteMany({
+            where: { trainingId: training.id }
+          })
+
+          // Delete training
+          await tx.training.delete({
+            where: { id: training.id }
+          })
+        }
+      }
+
+      // 3. Update fee types to remove group reference
+      if (group._count.feeTypes > 0) {
+        await tx.feeType.updateMany({
+          where: { groupId },
+          data: { groupId: null }
+        })
+      }
+
+      // 4. Finally, delete the group
+      await tx.group.delete({
+        where: { id: groupId }
+      })
     })
 
     return NextResponse.json({ message: 'Group deleted successfully' })

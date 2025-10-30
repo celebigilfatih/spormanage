@@ -1,48 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '20')
-    const search = searchParams.get('search') || ''
-    const isActive = searchParams.get('isActive')
-
-    const skip = (page - 1) * limit
-    const where: any = {}
-
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { position: { contains: search, mode: 'insensitive' } },
-        { license: { contains: search, mode: 'insensitive' } }
-      ]
-    }
-
-    if (isActive !== null && isActive !== 'all') {
-      where.isActive = isActive === 'true'
-    }
-
-    const [trainers, total] = await Promise.all([
-      prisma.trainer.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' }
-      }),
-      prisma.trainer.count({ where })
-    ])
-
-    return NextResponse.json({
-      trainers,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit)
+    const trainers = await prisma.trainer.findMany({
+      where: { isActive: true },
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        position: true,
+        experience: true,
+        license: true,
+        isActive: true
       }
     })
+
+    return NextResponse.json(trainers)
   } catch (error) {
     console.error('Failed to fetch trainers:', error)
     return NextResponse.json(

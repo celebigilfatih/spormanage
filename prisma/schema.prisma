@@ -54,6 +54,9 @@ model Student {
   notifications Notification[]
   groupHistories GroupHistory[]
   
+  @@index([groupId, isActive])
+  @@index([lastName, firstName])
+  @@index([isActive])
   @@map("students")
 }
 
@@ -80,11 +83,15 @@ model Group {
   id          String    @id @default(cuid())
   name        String    @unique // U10, U12, Başlangıç, İleri
   description String?
+  coachId     String?   // Ana antrenör
+  assistantCoachId String? // Yardımcı antrenör
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   
   // Relations
+  coach       Trainer?  @relation("GroupCoach", fields: [coachId], references: [id])
+  assistantCoach Trainer? @relation("GroupAssistantCoach", fields: [assistantCoachId], references: [id])
   students    Student[]
   feeTypes    FeeType[]
   trainings   Training[]
@@ -148,6 +155,9 @@ model Payment {
   feeType         FeeType       @relation(fields: [feeTypeId], references: [id])
   createdBy       User          @relation("PaymentCreator", fields: [createdById], references: [id])
   
+  @@index([studentId, status])
+  @@index([dueDate, status])
+  @@index([status])
   @@map("payments")
 }
 
@@ -245,6 +255,9 @@ model Notification {
   student     Student?  @relation(fields: [studentId], references: [id])
   createdBy   User      @relation("NotificationSender", fields: [createdById], references: [id])
   
+  @@index([method, status, createdAt])
+  @@index([createdAt])
+  @@index([studentId])
   @@map("notifications")
 }
 
@@ -260,6 +273,10 @@ model Trainer {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
+  // Relations
+  groupsAsCoach    Group[] @relation("GroupCoach")
+  groupsAsAssistant Group[] @relation("GroupAssistantCoach")
+  
   @@map("trainers")
 }
 
@@ -274,6 +291,7 @@ enum UserRole {
 enum FeePeriod {
   MONTHLY
   QUARTERLY
+  SEMI_ANNUAL
   YEARLY
   ONE_TIME
 }

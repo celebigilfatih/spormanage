@@ -73,6 +73,7 @@ export function StudentRegistrationForm({
     handleSubmit,
     watch,
     setValue,
+    reset,
     formState: { errors }
   } = useForm<StudentFormData>({
     resolver: zodResolver(studentSchema),
@@ -81,7 +82,8 @@ export function StudentRegistrationForm({
       lastName: initialData.lastName,
       phone: initialData.phone || '',
       birthDate: initialData.birthDate ? new Date(initialData.birthDate).toISOString().split('T')[0] : '',
-      groupId: initialData.groupId || '',
+      // Extract groupId from either groupId field or group.id
+      groupId: initialData.groupId || (initialData.group?.id) || '',
       parents: initialData.parents && initialData.parents.length > 0 ? initialData.parents : [
         {
           firstName: '',
@@ -90,7 +92,7 @@ export function StudentRegistrationForm({
           email: '',
           address: '',
           relationship: 'Anne',
-          isEmergency: false,
+          isEmergency: true,
           isPrimary: true,
         }
       ]
@@ -103,7 +105,7 @@ export function StudentRegistrationForm({
           email: '',
           address: '',
           relationship: 'Anne',
-          isEmergency: false,
+          isEmergency: true,
           isPrimary: true,
         }
       ]
@@ -116,6 +118,35 @@ export function StudentRegistrationForm({
   })
 
   const watchedParents = watch('parents')
+
+  // Reset form when initialData changes (for edit mode)
+  useEffect(() => {
+    if (initialData && mode === 'edit') {
+      reset({
+        firstName: initialData.firstName,
+        lastName: initialData.lastName,
+        phone: initialData.phone || '',
+        birthDate: initialData.birthDate ? new Date(initialData.birthDate).toISOString().split('T')[0] : '',
+        groupId: initialData.groupId || (initialData.group?.id) || '',
+        parents: initialData.parents && initialData.parents.length > 0 ? initialData.parents.map(p => ({
+          ...p,
+          email: p.email || '',
+          address: p.address || ''
+        })) : [
+          {
+            firstName: '',
+            lastName: '',
+            phone: '',
+            email: '',
+            address: '',
+            relationship: 'Anne',
+            isEmergency: true,
+            isPrimary: true,
+          }
+        ]
+      })
+    }
+  }, [initialData, mode, reset])
 
   useEffect(() => {
     fetchGroups()
@@ -162,6 +193,8 @@ export function StudentRegistrationForm({
           setValue(`parents.${i}.isPrimary`, false)
         }
       })
+      // Set emergency contact to true when primary is selected
+      setValue(`parents.${index}.isEmergency`, true)
     }
     setValue(`parents.${index}.isPrimary`, value)
   }
@@ -230,7 +263,7 @@ export function StudentRegistrationForm({
               <Label htmlFor="groupId">Grup</Label>
               <Select 
                 onValueChange={(value) => setValue('groupId', value)}
-                defaultValue={initialData?.groupId || undefined}
+                value={watch('groupId') || ''}
               >
                 <SelectTrigger>
                   <SelectValue placeholder={loadingGroups ? "Yükleniyor..." : "Grup seçin"} />
@@ -371,7 +404,7 @@ export function StudentRegistrationForm({
                       <input
                         type="checkbox"
                         id={`parents.${index}.isPrimary`}
-                        {...register(`parents.${index}.isPrimary`)}
+                        checked={watchedParents[index]?.isPrimary || false}
                         onChange={(e) => handlePrimaryChange(index, e.target.checked)}
                         className="rounded border-gray-300"
                       />
@@ -384,7 +417,8 @@ export function StudentRegistrationForm({
                       <input
                         type="checkbox"
                         id={`parents.${index}.isEmergency`}
-                        {...register(`parents.${index}.isEmergency`)}
+                        checked={watchedParents[index]?.isEmergency || false}
+                        onChange={(e) => setValue(`parents.${index}.isEmergency`, e.target.checked)}
                         className="rounded border-gray-300"
                       />
                       <Label htmlFor={`parents.${index}.isEmergency`} className="text-sm">

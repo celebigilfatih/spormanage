@@ -536,6 +536,7 @@ export default function SettingsPage() {
                       <SelectContent>
                         <SelectItem value="MONTHLY">Aylık</SelectItem>
                         <SelectItem value="QUARTERLY">3 Aylık</SelectItem>
+                        <SelectItem value="SEMI_ANNUAL">6 Aylık</SelectItem>
                         <SelectItem value="YEARLY">Yıllık</SelectItem>
                         <SelectItem value="ONE_TIME">Tek Seferlik</SelectItem>
                       </SelectContent>
@@ -579,6 +580,7 @@ export default function SettingsPage() {
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800">
                           {feeType.period === 'MONTHLY' && 'Aylık'}
                           {feeType.period === 'QUARTERLY' && '3 Aylık'}
+                          {feeType.period === 'SEMI_ANNUAL' && '6 Aylık'}
                           {feeType.period === 'YEARLY' && 'Yıllık'}
                           {feeType.period === 'ONE_TIME' && 'Tek Seferlik'}
                         </span>

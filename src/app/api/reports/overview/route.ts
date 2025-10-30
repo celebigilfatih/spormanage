@@ -2,10 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { AuthService } from '@/lib/auth';
 
+// Get current user from token
+async function getCurrentUser(request: NextRequest) {
+  const token = request.cookies.get('auth-token')?.value
+  if (!token) return null
+  
+  const payload = AuthService.verifyToken(token)
+  if (!payload) return null
+  
+  return await prisma.user.findUnique({
+    where: { id: payload.userId }
+  })
+}
+
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    const user = await AuthService.verifyToken(token || '');
+    const user = await getCurrentUser(request)
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

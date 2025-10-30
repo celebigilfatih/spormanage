@@ -87,6 +87,103 @@ async function main() {
     }
   }
 
+  // Create sample trainers
+  const trainers = [
+    { 
+      name: 'Ahmet Yılmaz', 
+      position: 'Baş Antrenör',
+      experience: 15,
+      license: 'UEFA PRO'
+    },
+    { 
+      name: 'Mehmet Demir', 
+      position: 'Antrenör',
+      experience: 10,
+      license: 'UEFA A'
+    },
+    { 
+      name: 'Ali Kaya', 
+      position: 'Yardımcı Antrenör',
+      experience: 5,
+      license: 'UEFA B'
+    },
+    { 
+      name: 'Fatma Özkan', 
+      position: 'Kaleci Antrenörü',
+      experience: 8,
+      license: 'UEFA A'
+    },
+  ]
+
+  for (const trainerData of trainers) {
+    const existingTrainer = await prisma.trainer.findFirst({
+      where: { name: trainerData.name }
+    })
+
+    if (!existingTrainer) {
+      await prisma.trainer.create({
+        data: trainerData
+      })
+      console.log(`✅ Trainer created: ${trainerData.name}`)
+    }
+  }
+
+  // Get admin user for createdBy
+  const admin = await prisma.user.findUnique({
+    where: { email: adminEmail }
+  })
+
+  if (!admin) {
+    throw new Error('Admin user not found')
+  }
+
+  // Create 10 students for each group
+  const allGroups = await prisma.group.findMany()
+  const firstNames = ['Ali', 'Ahmet', 'Mehmet', 'Mustafa', 'Can', 'Cem', 'Eren', 'Berk', 'Kerem', 'Furkan', 'Emre', 'Burak', 'Deniz', 'Mert', 'Kaan']
+  const lastNames = ['Yılmaz', 'Kaya', 'Demir', 'Çelik', 'Şahin', 'Yıldız', 'Yıldırım', 'Öztürk', 'Aydın', 'Özdemir', 'Arslan', 'Doğan', 'Aslan', 'Polat', 'Karaağaç']
+  
+  let studentCount = 0
+  for (const group of allGroups) {
+    for (let i = 0; i < 10; i++) {
+      const firstName = firstNames[Math.floor(Math.random() * firstNames.length)]
+      const lastName = lastNames[Math.floor(Math.random() * lastNames.length)]
+      
+      // Create parent
+      const parent = await prisma.parent.create({
+        data: {
+          firstName: firstName === 'Ali' ? 'Ayşe' : 'Fatma',
+          lastName: lastName,
+          phone: `+90 5${Math.floor(Math.random() * 900000000 + 100000000)}`,
+          email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`,
+          relationship: 'anne',
+          isPrimary: true
+        }
+      })
+
+      // Create student
+      const birthDate = new Date()
+      birthDate.setFullYear(birthDate.getFullYear() - Math.floor(Math.random() * 5 + 8)) // 8-13 yaş
+      
+      const student = await prisma.student.create({
+        data: {
+          firstName,
+          lastName,
+          phone: `+90 5${Math.floor(Math.random() * 900000000 + 100000000)}`,
+          birthDate,
+          groupId: group.id,
+          createdById: admin.id,
+          parents: {
+            connect: { id: parent.id }
+          }
+        }
+      })
+      
+      studentCount++
+    }
+    console.log(`✅ Created 10 students for group: ${group.name}`)
+  }
+
+  console.log(`✅ Total students created: ${studentCount}`)
   console.log('🎉 Seeding completed!')
   console.log('')
   console.log('Login credentials:')
