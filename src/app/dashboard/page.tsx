@@ -18,10 +18,39 @@ import {
   DollarSign,
   Activity
 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 export default function Dashboard() {
   const { user, logout, isLoading } = useAuth()
   const router = useRouter()
+  const [stats, setStats] = useState({
+    totalStudents: 0,
+    activeStudents: 0,
+    loading: true
+  })
+
+  useEffect(() => {
+    if (user) {
+      fetchStats()
+    }
+  }, [user])
+
+  const fetchStats = async () => {
+    try {
+      const response = await fetch('/api/students?status=active&limit=1000')
+      if (response.ok) {
+        const data = await response.json()
+        setStats({
+          totalStudents: data.pagination.total,
+          activeStudents: data.pagination.total,
+          loading: false
+        })
+      }
+    } catch (error) {
+      console.error('Failed to fetch stats:', error)
+      setStats(prev => ({ ...prev, loading: false }))
+    }
+  }
 
   if (isLoading) {
     return (
@@ -119,7 +148,13 @@ export default function Dashboard() {
               <Users className="h-5 w-5 text-blue-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-gray-900">-</div>
+              <div className="text-3xl font-bold text-gray-900">
+                {stats.loading ? (
+                  <div className="w-16 h-8 bg-gray-200 animate-pulse rounded"></div>
+                ) : (
+                  stats.totalStudents
+                )}
+              </div>
               <p className="text-xs text-gray-500 mt-1">
                 Aktif kayıtlı öğrenci sayısı
               </p>

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
-import Header from '@/components/Header'
+import AppLayout from '@/components/AppLayout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -257,9 +257,7 @@ export default function BulkPaymentsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-      
+    <AppLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Toplu İşlemler</h1>
@@ -486,7 +484,7 @@ export default function BulkPaymentsPage() {
                             <SelectItem value={PaymentMethod.CASH}>Nakit</SelectItem>
                             <SelectItem value={PaymentMethod.CREDIT_CARD}>Kredi Kartı</SelectItem>
                             <SelectItem value={PaymentMethod.BANK_TRANSFER}>Banka Transferi</SelectItem>
-                            <SelectItem value={PaymentMethod.CHECK}>Çek</SelectItem>
+                            <SelectItem value={PaymentMethod.CHEQUE}>Çek</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -574,6 +572,6 @@ export default function BulkPaymentsPage() {
           )}
         </div>
       </div>
-    </div>
+    </AppLayout>
   )
 }

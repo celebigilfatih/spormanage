@@ -127,6 +127,9 @@ export interface Group {
   students?: Student[]
   feeTypes?: FeeType[]
   trainings?: Training[]
+  _count?: {
+    students: number
+  }
 }
 
 export interface FeeType {

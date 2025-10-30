@@ -11,9 +11,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Plus, Search, Users, Phone, Mail, Calendar, MapPin, Eye, Edit2, Trash2, Power } from 'lucide-react'
 import { Student, Group, StudentFormData, UserRole } from '@/types'
 import { AuthService } from '@/lib/auth'
+import { useToast } from '@/hooks/use-toast'
 
 export default function StudentsPage() {
   const { user } = useAuth()
+  const { toast } = useToast()
   const [students, setStudents] = useState<Student[]>([])
   const [groups, setGroups] = useState<Group[]>([])
   const [loading, setLoading] = useState(true)
@@ -88,16 +90,25 @@ export default function StudentsPage() {
 
       if (response.ok) {
         setShowRegistrationForm(false)
-        fetchStudents() // Refresh the list
-        // TODO: Show success toast
+        fetchStudents()
+        toast({
+          title: "✅ Başarılı!",
+          description: `${data.firstName} ${data.lastName} başarıyla kaydedildi.`,
+        })
       } else {
         const error = await response.json()
-        // TODO: Show error toast
-        console.error('Registration failed:', error.error)
+        toast({
+          variant: "destructive",
+          title: "❌ Hata!",
+          description: error.error || 'Öğrenci kaydedilemedi',
+        })
       }
     } catch (error) {
-      console.error('Registration failed:', error)
-      // TODO: Show error toast
+      toast({
+        variant: "destructive",
+        title: "❌ Hata!",
+        description: 'Öğrenci kaydı sırasında bir hata oluştu',
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -117,29 +128,31 @@ export default function StudentsPage() {
       if (response.ok) {
         setShowEditModal(false)
         setSelectedStudent(null)
-        fetchStudents() // Refresh the list
-        // TODO: Show success toast
-        alert('Öğrenci başarıyla güncellendi!')
+        fetchStudents()
+        toast({
+          title: "✅ Güncellendi!",
+          description: `${data.firstName} ${data.lastName} başarıyla güncellendi.`,
+        })
       } else {
         const error = await response.json()
-        // TODO: Show error toast
-        console.error('Edit failed:', error.error)
-        alert('Güncelleme başarısız: ' + (error.error || 'Bilinmeyen hata'))
+        toast({
+          variant: "destructive",
+          title: "❌ Hata!",
+          description: error.error || 'Öğrenci güncellenemedi',
+        })
       }
     } catch (error) {
-      console.error('Edit failed:', error)
-      // TODO: Show error toast
-      alert('Güncelleme başarısız oldu')
+      toast({
+        variant: "destructive",
+        title: "❌ Hata!",
+        description: 'Güncelleme sırasında bir hata oluştu',
+      })
     } finally {
       setIsSubmitting(false)
     }
   }
 
   const handleDeleteStudent = async (student: Student) => {
-    if (!confirm(`${student.firstName} ${student.lastName} adlı öğrenciyi silmek istediğinizden emin misiniz? Bu işlem öğrenciyi pasif duruma getirecektir.`)) {
-      return
-    }
-
     try {
       const response = await fetch(`/api/students/${student.id}`, {
         method: 'DELETE',
@@ -147,23 +160,30 @@ export default function StudentsPage() {
 
       if (response.ok) {
         await fetchStudents()
-        alert('Öğrenci başarıyla silindi!')
+        toast({
+          title: "✅ Silindi!",
+          description: `${student.firstName} ${student.lastName} başarıyla silindi.`,
+        })
       } else {
         const error = await response.json()
-        alert('Hata: ' + (error.error || 'Öğrenci silinemedi'))
+        toast({
+          variant: "destructive",
+          title: "❌ Hata!",
+          description: error.error || 'Öğrenci silinemedi',
+        })
       }
     } catch (error) {
-      console.error('Delete error:', error)
-      alert('Öğrenci silinirken bir hata oluştu')
+      toast({
+        variant: "destructive",
+        title: "❌ Hata!",
+        description: 'Öğrenci silinirken bir hata oluştu',
+      })
     }
   }
 
   const handleToggleStatus = async (student: Student) => {
     const action = student.isActive ? 'pasife' : 'aktife'
-    if (!confirm(`${student.firstName} ${student.lastName} adlı öğrenciyi ${action} çekmek istediğinize emin misiniz?`)) {
-      return
-    }
-
+    
     try {
       const response = await fetch(`/api/students/${student.id}`, {
         method: 'PUT',
@@ -177,20 +197,30 @@ export default function StudentsPage() {
           birthDate: student.birthDate,
           groupId: student.group?.id,
           isActive: !student.isActive,
-          parents: [] // Empty array, API will skip parent updates if empty
+          parents: []
         }),
       })
 
       if (response.ok) {
         await fetchStudents()
-        alert(`Öğrenci başarıyla ${action} çekildi!`)
+        toast({
+          title: student.isActive ? "🔴 Pasif Yapıldı" : "✅ Aktif Yapıldı",
+          description: `${student.firstName} ${student.lastName} başarıyla ${action} çekildi.`,
+        })
       } else {
         const error = await response.json()
-        alert('Hata: ' + (error.error || 'Durum güncellenemedi'))
+        toast({
+          variant: "destructive",
+          title: "❌ Hata!",
+          description: error.error || 'Durum güncellenemedi',
+        })
       }
     } catch (error) {
-      console.error('Toggle status error:', error)
-      alert('Durum güncellenirken bir hata oluştu')
+      toast({
+        variant: "destructive",
+        title: "❌ Hata!",
+        description: 'Durum güncellenirken bir hata oluştu',
+      })
     }
   }
 
@@ -200,7 +230,6 @@ export default function StudentsPage() {
   }
 
   const handleEditStudent = async (student: Student) => {
-    // Fetch complete student data including all parent fields
     try {
       const response = await fetch(`/api/students/${student.id}`)
       if (response.ok) {
@@ -208,11 +237,18 @@ export default function StudentsPage() {
         setSelectedStudent(fullStudent)
         setShowEditModal(true)
       } else {
-        alert('Öğrenci bilgileri yüklenemedi')
+        toast({
+          variant: "destructive",
+          title: "❌ Hata!",
+          description: 'Öğrenci bilgileri yüklenemedi',
+        })
       }
     } catch (error) {
-      console.error('Failed to fetch student details:', error)
-      alert('Öğrenci bilgileri yüklenirken hata oluştu')
+      toast({
+        variant: "destructive",
+        title: "❌ Hata!",
+        description: 'Öğrenci bilgileri yüklenirken hata oluştu',
+      })
     }
   }
 

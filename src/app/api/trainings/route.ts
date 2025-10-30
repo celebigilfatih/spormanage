@@ -39,6 +39,20 @@ export async function GET(request: NextRequest) {
         include: {
           group: {
             include: {
+              coach: {
+                select: {
+                  id: true,
+                  name: true,
+                  position: true
+                }
+              },
+              assistantCoach: {
+                select: {
+                  id: true,
+                  name: true,
+                  position: true
+                }
+              },
               _count: {
                 select: { students: true }
               }
@@ -161,6 +175,20 @@ export async function POST(request: NextRequest) {
       include: {
         group: {
           include: {
+            coach: {
+              select: {
+                id: true,
+                name: true,
+                position: true
+              }
+            },
+            assistantCoach: {
+              select: {
+                id: true,
+                name: true,
+                position: true
+              }
+            },
             _count: {
               select: { students: true }
             }

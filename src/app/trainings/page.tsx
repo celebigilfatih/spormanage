@@ -46,6 +46,16 @@ interface TrainingListItem {
     isActive: boolean;
     createdAt: Date | string;
     updatedAt: Date | string;
+    coach?: {
+      id: string;
+      name: string;
+      position: string;
+    };
+    assistantCoach?: {
+      id: string;
+      name: string;
+      position: string;
+    };
     _count: {
       students: number;
     };
@@ -463,7 +473,7 @@ export default function TrainingsPage() {
         </Card>
       </div>
 
-      {/* Trainings List */}
+      {/* Trainings Table */}
       <Card>
         <CardHeader>
           <CardTitle>Antrenmanlar</CardTitle>
@@ -485,129 +495,126 @@ export default function TrainingsPage() {
               </Button>
             </div>
           ) : (
-            <div className="space-y-4">
-              {Array.isArray(trainings) && trainings.map((training) => {
-                const nextSession = getNextSession(training);
-                const completedCount = getCompletedSessionsCount(training);
-                const totalCount = getTotalSessionsCount(training);
-                
-                return (
-                <div
-                  key={training.id}
-                  className="border rounded-lg p-4 space-y-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium text-lg">{training.name}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {training.group.name} • {totalCount} seans ({completedCount} tamamlandı)
-                      </div>
-                      {training.description && (
-                        <div className="text-sm text-muted-foreground mt-1">
-                          {training.description}
-                        </div>
-                      )}
-                    </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left p-3 font-medium">Antrenman Adı</th>
+                    <th className="text-left p-3 font-medium">Grup</th>
+                    <th className="text-left p-3 font-medium">Antrенör</th>
+                    <th className="text-left p-3 font-medium">Açıklama</th>
+                    <th className="text-center p-3 font-medium">Toplam Seans</th>
+                    <th className="text-center p-3 font-medium">Tamamlanan</th>
+                    <th className="text-center p-3 font-medium">Sonraki Seans</th>
+                    <th className="text-center p-3 font-medium">Durum</th>
+                    <th className="text-center p-3 font-medium">İşlemler</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {trainings.map((training) => {
+                    const nextSession = getNextSession(training);
+                    const completedCount = getCompletedSessionsCount(training);
+                    const totalCount = getTotalSessionsCount(training);
                     
-                    <div className="flex items-center gap-2">
-                      <Badge variant={training.isActive ? "default" : "secondary"}>
-                        {training.isActive ? 'Aktif' : 'Pasif'}
-                      </Badge>
-                      
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => handleEditTraining(training)}
-                          >
-                            Düzenle
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-red-600"
-                            onClick={() => handleDeleteTraining(training.id)}
-                          >
-                            Sil
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-
-                  {/* Sessions List */}
-                  {training.sessions && training.sessions.length > 0 && (
-                    <div className="space-y-2">
-                      <h4 className="text-sm font-medium">Seanslar:</h4>
-                      <div className="space-y-2">
-                        {training.sessions.slice(0, 3).map((session) => {
-                          const isPast = new Date(session.date) < new Date();
-                          const attendanceRate = getAttendanceRate(session, training);
-                          
-                          return (
-                            <div
-                              key={session.id}
-                              className="flex items-center justify-between p-3 bg-gray-50 rounded-md"
-                            >
-                              <div className="flex items-center gap-4">
-                                <div className="text-sm">
-                                  <div className="font-medium">
-                                    {formatDate(session.date)}
-                                  </div>
-                                  <div className="text-muted-foreground">
-                                    {formatTime(session.startTime)} - {formatTime(session.endTime)}
-                                    {session.location && ` • ${session.location}`}
-                                  </div>
+                    return (
+                      <tr key={training.id} className="border-b hover:bg-gray-50">
+                        {/* Training Name */}
+                        <td className="p-3">
+                          <div className="font-medium">{training.name}</div>
+                        </td>
+                        
+                        {/* Group */}
+                        <td className="p-3">
+                          <div className="text-sm">{training.group.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {training.group._count.students} öğrenci
+                          </div>
+                        </td>
+                        
+                        {/* Trainer */}
+                        <td className="p-3">
+                          {training.group.coach ? (
+                            <div>
+                              <div className="text-sm font-medium">{training.group.coach.name}</div>
+                              <div className="text-xs text-muted-foreground">{training.group.coach.position}</div>
+                              {training.group.assistantCoach && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  Yrd: {training.group.assistantCoach.name}
                                 </div>
-                                {session.isCancelled && (
-                                  <Badge variant="destructive">İptal</Badge>
-                                )}
-                              </div>
-                              
-                              <div className="flex items-center gap-3">
-                                {isPast && !session.isCancelled && (
-                                  <div className="text-center text-sm">
-                                    <div className="font-medium">
-                                      {session._count.attendances}/{training.group._count.students}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      %{attendanceRate}
-                                    </div>
-                                  </div>
-                                )}
-                                
-                                {!session.isCancelled && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleAttendanceClick(session, training)}
-                                  >
-                                    Yoklama
-                                  </Button>
-                                )}
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                          )}
+                        </td>
+                        
+                        {/* Description */}
+                        <td className="p-3">
+                          <div className="text-sm text-muted-foreground max-w-xs truncate">
+                            {training.description || '-'}
+                          </div>
+                        </td>
+                        
+                        {/* Total Sessions */}
+                        <td className="p-3 text-center">
+                          <div className="font-medium">{totalCount}</div>
+                        </td>
+                        
+                        {/* Completed Sessions */}
+                        <td className="p-3 text-center">
+                          <div className="text-sm">{completedCount}</div>
+                          <div className="text-xs text-muted-foreground">
+                            %{totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0}
+                          </div>
+                        </td>
+                        
+                        {/* Next Session */}
+                        <td className="p-3 text-center">
+                          {nextSession ? (
+                            <div className="text-sm">
+                              <div>{formatDate(nextSession.date)}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {formatTime(nextSession.startTime)}
                               </div>
                             </div>
-                          );
-                        })}
+                          ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                          )}
+                        </td>
                         
-                        {training.sessions.length > 3 && (
-                          <div className="text-sm text-muted-foreground text-center pt-2">
-                            +{training.sessions.length - 3} seans daha
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {(!training.sessions || training.sessions.length === 0) && (
-                    <div className="text-sm text-muted-foreground text-center py-4">
-                      Henüz seans eklenmemiş
-                    </div>
-                  )}
-                </div>
-              )})}
+                        {/* Status */}
+                        <td className="p-3 text-center">
+                          <Badge variant={training.isActive ? "default" : "secondary"}>
+                            {training.isActive ? 'Aktif' : 'Pasif'}
+                          </Badge>
+                        </td>
+                        
+                        {/* Actions */}
+                        <td className="p-3 text-center">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleEditTraining(training)}>
+                                Düzenle
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-red-600"
+                                onClick={() => handleDeleteTraining(training.id)}
+                              >
+                                Sil
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </CardContent>
