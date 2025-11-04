@@ -17,7 +17,7 @@ docker-compose up -d --build
 
 # Wait for containers to be healthy
 echo "⏳ Waiting for containers to start..."
-sleep 10
+sleep 15
 
 # Check container status
 echo "✅ Checking container status..."
@@ -31,10 +31,22 @@ docker exec spormanage-frontend-1 printenv | grep -E "JWT_SECRET|NEXTAUTH"
 echo "🗄️  Checking database connection..."
 docker exec spormanage-postgres-1 psql -U postgres -d aidat_takip -c "SELECT COUNT(*) as user_count FROM users;"
 
+# Show logs to verify no errors
+echo "📋 Checking frontend logs for errors..."
+docker logs --tail 50 spormanage-frontend-1
+
 echo "✨ Deployment complete!"
 echo "🌐 Application is now available at: http://portal.spormanage.com.tr:3077"
 echo ""
-echo "⚠️  IMPORTANT: Clear browser cookies before logging in!"
+echo "⚠️  IMPORTANT STEPS:"
+echo "1. Clear browser cookies for portal.spormanage.com.tr"
+echo "2. Clear browser cache (Ctrl+Shift+Delete)"
+echo "3. Hard refresh the page (Ctrl+Shift+R)"
+echo "4. Login again with admin credentials"
+echo ""
 echo "📧 Admin users:"
 echo "   - admin@futbolokulu.com"
 echo "   - core@spormanage.com.tr"
+echo ""
+echo "🔍 To view live logs:"
+echo "   docker logs -f spormanage-frontend-1"

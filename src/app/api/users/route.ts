@@ -5,14 +5,21 @@ import bcrypt from 'bcryptjs'
 
 async function getCurrentUser(request: NextRequest) {
   const token = request.cookies.get('auth-token')?.value
+  console.log('[Users API] Token from cookie:', token ? 'present' : 'missing')
+  
   if (!token) return null
   
   const payload = AuthService.verifyToken(token)
+  console.log('[Users API] Token payload:', payload ? 'valid' : 'invalid')
+  
   if (!payload) return null
   
-  return await prisma.user.findUnique({
+  const user = await prisma.user.findUnique({
     where: { id: payload.userId }
   })
+  console.log('[Users API] User found:', user ? `${user.email} (${user.role})` : 'not found')
+  
+  return user
 }
 
 export async function GET(request: NextRequest) {

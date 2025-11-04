@@ -4,6 +4,11 @@ import { UserRole } from '@/types'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key'
 
+// Log JWT secret status on startup (only first 10 chars for security)
+if (typeof window === 'undefined') {
+  console.log('[Auth] JWT_SECRET configured:', JWT_SECRET ? `${JWT_SECRET.substring(0, 10)}...` : 'NOT SET')
+}
+
 export interface JWTPayload {
   userId: string
   email: string
@@ -26,8 +31,11 @@ export class AuthService {
 
   static verifyToken(token: string): JWTPayload | null {
     try {
-      return jwt.verify(token, JWT_SECRET) as JWTPayload
+      const payload = jwt.verify(token, JWT_SECRET) as JWTPayload
+      console.log('[Auth] Token verified successfully for user:', payload.email)
+      return payload
     } catch (error) {
+      console.error('[Auth] Token verification failed:', error instanceof Error ? error.message : 'Unknown error')
       return null
     }
   }
