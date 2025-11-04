@@ -13,7 +13,11 @@ import {
   Clock,
   UserCheck,
   MapPin,
-  CheckCircle2
+  CheckCircle2,
+  Plus,
+  History,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import { AttendanceTracker } from '@/components/trainings/AttendanceTracker';
 import { useToast } from '@/hooks/use-toast';
@@ -55,15 +59,19 @@ export default function AttendancePage() {
   const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
   const [showAttendanceTracker, setShowAttendanceTracker] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'upcoming' | 'past'>('upcoming');
 
   useEffect(() => {
     fetchTrainings();
-  }, []);
+  }, [viewMode]);
 
   const fetchTrainings = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/trainings?upcoming=true');
+      const url = viewMode === 'upcoming' 
+        ? '/api/trainings?upcoming=true' 
+        : '/api/trainings';
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         const trainingsArray = data.trainings || data;
@@ -125,6 +133,40 @@ export default function AttendancePage() {
     }
   };
 
+  const handleDeleteAttendance = async (sessionId: string, sessionName: string) => {
+    if (!confirm(`${sessionName} seansının yoklama kayıtlarını silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/attendances/${sessionId}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        fetchTrainings();
+        toast({
+          title: "Başarılı",
+          description: `${result.count} yoklama kaydı silindi`,
+        });
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Hata",
+          description: error.error || "Yoklama silinemedi",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Hata",
+        description: "Yoklama silinemedi",
+        variant: "destructive",
+      });
+    }
+  };
+
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString('tr-TR', {
       day: '2-digit',
@@ -158,11 +200,17 @@ export default function AttendancePage() {
   };
 
   const selectedTrainingData = trainings.find(t => t.id === selectedTraining);
-  const upcomingSessions = selectedTrainingData?.sessions.filter(s => {
+  
+  const filteredSessions = selectedTrainingData?.sessions.filter(s => {
     const sessionDate = new Date(s.date);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return sessionDate >= today && !s.isCancelled;
+    
+    if (viewMode === 'upcoming') {
+      return sessionDate >= today && !s.isCancelled;
+    } else {
+      return sessionDate < today && !s.isCancelled;
+    }
   }) || [];
 
   // Show attendance tracker
@@ -187,11 +235,35 @@ export default function AttendancePage() {
     <AppLayout>
       <div className="container mx-auto py-6 space-y-6">
         {/* Page Header */}
-        <div>
-          <h1 className="text-3xl font-bold">Yoklama Al</h1>
-          <p className="text-muted-foreground">
-            Antrenman seçip öğrenci yoklamasını kaydedin
-          </p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">Yoklama</h1>
+            <p className="text-muted-foreground">
+              {viewMode === 'upcoming' ? 'Yakın zamandaki seanslar için yoklama alın' : 'Geçmiş yoklamaları görüntüleyin'}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant={viewMode === 'upcoming' ? 'default' : 'outline'}
+              onClick={() => {
+                setViewMode('upcoming');
+                setSelectedTraining('');
+              }}
+            >
+              <Clock className="h-4 w-4 mr-2" />
+              Yakın Zamandakiler
+            </Button>
+            <Button
+              variant={viewMode === 'past' ? 'default' : 'outline'}
+              onClick={() => {
+                setViewMode('past');
+                setSelectedTraining('');
+              }}
+            >
+              <History className="h-4 w-4 mr-2" />
+              Geçmiş Yoklamalar
+            </Button>
+          </div>
         </div>
 
         {/* Training Selection */}
@@ -202,7 +274,7 @@ export default function AttendancePage() {
               Antrenman Seç
             </CardTitle>
             <CardDescription>
-              Yoklama almak istediğiniz antrenmanı seçin
+              {viewMode === 'upcoming' ? 'Yoklama almak istediğiniz antrenmanı seçin' : 'Geçmiş yoklamalarını görmek istediğiniz antrenmanı seçin'}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -213,9 +285,14 @@ export default function AttendancePage() {
             ) : trainings.length === 0 ? (
               <div className="text-center py-8">
                 <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">
-                  Gelecek antrenman bulunamadı
+                <h3 className="text-lg font-semibold mb-2">Antrenman bulunamadı</h3>
+                <p className="text-muted-foreground mb-4">
+                  Yoklama alabilmek için önce antrenman oluşturmanız gerekiyor
                 </p>
+                <Button onClick={() => router.push('/trainings')}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Antrenman Oluştur
+                </Button>
               </div>
             ) : (
               <div className="space-y-4">
@@ -245,12 +322,12 @@ export default function AttendancePage() {
         </Card>
 
         {/* Sessions List */}
-        {selectedTraining && upcomingSessions.length > 0 && (
+        {selectedTraining && filteredSessions.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Yaklaşan Seanslar
+                {viewMode === 'upcoming' ? <Clock className="h-5 w-5" /> : <History className="h-5 w-5" />}
+                {viewMode === 'upcoming' ? 'Yakışan Seanslar' : 'Geçmiş Seanslar'}
               </CardTitle>
               <CardDescription>
                 {selectedTrainingData?.name} - {selectedTrainingData?.group.name}
@@ -258,7 +335,7 @@ export default function AttendancePage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {upcomingSessions.map((session) => {
+                {filteredSessions.map((session) => {
                   const attendanceRate = getAttendanceRate(session, selectedTrainingData!);
                   const isCompleted = session._count.attendances > 0;
                   
@@ -298,7 +375,7 @@ export default function AttendancePage() {
                         )}
                       </div>
 
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
                         {isCompleted && (
                           <div className="text-center">
                             <div className="flex items-center gap-2 text-sm">
@@ -313,13 +390,53 @@ export default function AttendancePage() {
                           </div>
                         )}
 
-                        <Button
-                          onClick={() => handleSessionSelect(session)}
-                          variant={isCompleted ? "outline" : "default"}
-                        >
-                          <UserCheck className="h-4 w-4 mr-2" />
-                          {isCompleted ? 'Düzenle' : 'Yoklama Al'}
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => handleSessionSelect(session)}
+                            variant={isCompleted ? "outline" : "default"}
+                            disabled={viewMode === 'past' && !isCompleted}
+                            size="sm"
+                          >
+                            {viewMode === 'past' ? (
+                              isCompleted ? (
+                                <>
+                                  <UserCheck className="h-4 w-4 mr-1" />
+                                  Görüntüle
+                                </>
+                              ) : (
+                                'Yoklama Alınmamış'
+                              )
+                            ) : (
+                              <>
+                                {isCompleted ? (
+                                  <>
+                                    <Edit className="h-4 w-4 mr-1" />
+                                    Düzenle
+                                  </>
+                                ) : (
+                                  <>
+                                    <UserCheck className="h-4 w-4 mr-1" />
+                                    Yoklama Al
+                                  </>
+                                )}
+                              </>
+                            )}
+                          </Button>
+                          
+                          {isCompleted && (
+                            <Button
+                              onClick={() => handleDeleteAttendance(
+                                session.id,
+                                `${formatDate(session.date)} - ${formatTime(session.startTime)}`
+                              )}
+                              variant="outline"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -329,14 +446,33 @@ export default function AttendancePage() {
           </Card>
         )}
 
-        {selectedTraining && upcomingSessions.length === 0 && (
+        {selectedTraining && filteredSessions.length === 0 && (
           <Card>
             <CardContent className="py-12 text-center">
-              <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Yaklaşan seans bulunamadı</h3>
-              <p className="text-muted-foreground">
-                Bu antrenman için henüz planlanmış gelecek seans yok
-              </p>
+              {viewMode === 'upcoming' ? (
+                <>
+                  <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Yakın zamanda seans yok</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Bu antrenman için henüz planlanmış gelecek seans yok.
+                    Antrenmanlar sayfasından yeni seans ekleyebilirsiniz.
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push('/trainings')}
+                  >
+                    Antrenmanlar Sayfasına Git
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <History className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Geçmiş seans bulunamadı</h3>
+                  <p className="text-muted-foreground">
+                    Bu antrenman için henüz tamamlanmış geçmiş seans yok.
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
         )}

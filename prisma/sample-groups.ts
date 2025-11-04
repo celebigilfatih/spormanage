@@ -68,14 +68,16 @@ async function createGroupHistory() {
       })
 
       // Create new group history
-      await prisma.groupHistory.create({
-        data: {
-          studentId: student.id,
-          groupId: student.groupId,
-          startDate: transferDate,
-          reason: 'Transferred from previous group'
-        }
-      })
+      if (student.groupId) {
+        await prisma.groupHistory.create({
+          data: {
+            studentId: student.id,
+            groupId: student.groupId,
+            startDate: transferDate,
+            reason: 'Transferred from previous group'
+          }
+        })
+      }
 
       console.log(`✅ Created transfer history for ${student.firstName} ${student.lastName}`)
     }

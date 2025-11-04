@@ -39,7 +39,7 @@ export async function seedNotifications() {
         type: NotificationType.PAYMENT_REMINDER,
         method: NotificationMethod.EMAIL,
         status: NotificationStatus.SENT,
-        recipientEmail: students[0].email || students[0].parents[0]?.email,
+        recipientEmail: students[0].parents[0]?.email,
         sentAt: new Date(),
         createdById: admin.id
       },
@@ -73,7 +73,7 @@ export async function seedNotifications() {
         type: NotificationType.ATTENDANCE_REMINDER,
         method: NotificationMethod.EMAIL,
         status: NotificationStatus.PENDING,
-        recipientEmail: students[3].email || students[3].parents[0]?.email,
+        recipientEmail: students[3].parents[0]?.email,
         scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
         createdById: admin.id
       },

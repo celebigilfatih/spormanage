@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      affectedRows: result.count,
+      affectedRows: result?.count || 0,
       action
     });
   } catch (error) {

@@ -16,7 +16,7 @@ async function getCurrentUser(request: NextRequest) {
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser(request)
@@ -27,7 +27,7 @@ export async function PATCH(
       )
     }
 
-    const noteId = params.id
+    const { id: noteId } = await params
     const data = await request.json()
 
     const note = await prisma.note.findUnique({
@@ -83,7 +83,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser(request)
@@ -94,7 +94,7 @@ export async function DELETE(
       )
     }
 
-    const noteId = params.id
+    const { id: noteId } = await params
 
     const note = await prisma.note.findUnique({
       where: { id: noteId }

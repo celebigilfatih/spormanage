@@ -11,7 +11,6 @@ import {
   AlertTriangle, 
   Calendar,
   FileText,
-  GraduationCap,
   TrendingUp,
   Target,
   BookOpen,
@@ -117,27 +116,6 @@ export default function Dashboard() {
     <AppLayout>
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-8 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-3xl font-bold mb-2">
-                  Hoş Geldiniz, {user.name}!
-                </h2>
-                <p className="text-blue-100 text-lg">
-                  Futbol okulu yönetim sisteminize başarıyla giriş yaptınız.
-                </p>
-              </div>
-              <div className="hidden md:block">
-                <div className="w-24 h-24 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                  <GraduationCap className="w-12 h-12 text-white" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">

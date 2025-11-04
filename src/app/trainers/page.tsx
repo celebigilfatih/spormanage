@@ -5,17 +5,11 @@ import AppLayout from '@/components/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Users, Award, Edit, Trash2, User } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { Plus, Users, Award, Edit, Trash2, User, Search } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { TrainerForm } from '@/components/trainers/TrainerForm';
 import { useToast } from '@/hooks/use-toast';
-import { MoreHorizontal } from 'lucide-react';
 
 interface Trainer {
   id: string;
@@ -35,6 +29,7 @@ export default function TrainersPage() {
   const [loading, setLoading] = useState(true);
   const [showTrainerForm, setShowTrainerForm] = useState(false);
   const [editingTrainer, setEditingTrainer] = useState<Trainer | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -46,7 +41,8 @@ export default function TrainersPage() {
       const response = await fetch('/api/trainers');
       if (response.ok) {
         const data = await response.json();
-        setTrainers(Array.isArray(data.trainers) ? data.trainers : []);
+        // Handle both array and object responses
+        setTrainers(Array.isArray(data) ? data : (data.trainers || []));
       } else {
         setTrainers([]);
       }
@@ -121,6 +117,16 @@ export default function TrainersPage() {
     }
   };
 
+  const filteredTrainers = trainers.filter(trainer => {
+    const search = searchTerm.toLowerCase();
+    return (
+      trainer.name.toLowerCase().includes(search) ||
+      trainer.position.toLowerCase().includes(search) ||
+      trainer.license?.toLowerCase().includes(search) ||
+      trainer.experience.toString().includes(search)
+    );
+  });
+
   if (loading) {
     return (
       <AppLayout>
@@ -188,102 +194,146 @@ export default function TrainersPage() {
           </Card>
         </div>
 
-        {/* Trainers List */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Antrenörler</CardTitle>
-            <CardDescription>
-              Tüm teknik kadro üyeleri
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {trainers.length === 0 ? (
-              <div className="text-center py-8">
-                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">Henüz antrenör yok</h3>
-                <p className="text-muted-foreground mb-4">
-                  İlk antrenörü eklemek için başlayın
-                </p>
-                <Button onClick={() => setShowTrainerForm(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Antrenör Ekle
-                </Button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {trainers.map((trainer) => (
-                  <Card key={trainer.id} className="overflow-hidden">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-4">
+        {/* Search Bar */}
+        <div className="bg-white p-6 rounded-lg shadow mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Ad, pozisyon veya lisans ile ara..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
+
+        {/* Trainers Table */}
+        <div className="bg-white shadow rounded-lg overflow-hidden">
+          {loading ? (
+            <div className="p-8 text-center">
+              <div className="text-lg text-gray-600">Yükleniyor...</div>
+            </div>
+          ) : trainers.length === 0 ? (
+            <div className="p-8 text-center">
+              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <div className="text-lg text-gray-600 mb-2">Henüz antrenör yok</div>
+              <p className="text-gray-500 mb-4">
+                İlk antrenörü eklemek için başlayın
+              </p>
+              <Button onClick={() => setShowTrainerForm(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Antrenör Ekle
+              </Button>
+            </div>
+          ) : filteredTrainers.length === 0 ? (
+            <div className="p-8 text-center">
+              <Search className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <div className="text-lg text-gray-600 mb-2">Sonuç bulunamadı</div>
+              <p className="text-gray-500 mb-4">
+                Arama kriterlerinize uygun antrenör bulunamadı
+              </p>
+              <Button variant="outline" onClick={() => setSearchTerm('')}>
+                Aramayı Temizle
+              </Button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Antrenör
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Pozisyon
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Deneyim
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Lisans
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Durum
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      İşlemler
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredTrainers.map((trainer) => (
+                    <tr key={trainer.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
                           {trainer.photo ? (
                             <img 
                               src={trainer.photo} 
                               alt={trainer.name}
-                              className="w-16 h-16 rounded-full object-cover"
+                              className="w-10 h-10 rounded-full object-cover"
                             />
                           ) : (
-                            <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
-                              <User className="h-8 w-8 text-blue-600" />
+                            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                              <User className="h-5 w-5 text-blue-600" />
                             </div>
                           )}
-                          <div>
-                            <h3 className="font-semibold text-lg">{trainer.name}</h3>
-                            <p className="text-sm text-muted-foreground">{trainer.position}</p>
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-gray-900">{trainer.name}</div>
+                            {trainer.biography && (
+                              <div className="text-sm text-gray-500 line-clamp-1 max-w-xs">
+                                {trainer.biography}
+                              </div>
+                            )}
                           </div>
                         </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEditTrainer(trainer)}>
-                              <Edit className="h-4 w-4 mr-2" />
-                              Düzenle
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-red-600"
-                              onClick={() => handleDeleteTrainer(trainer.id)}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Sil
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm">
-                          <Award className="h-4 w-4 text-muted-foreground" />
-                          <span>{trainer.experience} yıl deneyim</span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{trainer.position}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <Award className="h-4 w-4 text-gray-400 mr-2" />
+                          <span className="text-sm text-gray-900">{trainer.experience} yıl</span>
                         </div>
-                        {trainer.license && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Award className="h-4 w-4 text-muted-foreground" />
-                            <span>{trainer.license}</span>
-                          </div>
-                        )}
-                        {trainer.biography && (
-                          <p className="text-sm text-muted-foreground mt-3 line-clamp-3">
-                            {trainer.biography}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="mt-4">
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {trainer.license || <span className="text-gray-400">-</span>}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <Badge variant={trainer.isActive ? "default" : "secondary"}>
                           {trainer.isActive ? 'Aktif' : 'Pasif'}
                         </Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex justify-end space-x-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditTrainer(trainer)}
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Düzenle
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => handleDeleteTrainer(trainer.id)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Sil
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Trainer Form Dialog */}

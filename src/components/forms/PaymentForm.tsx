@@ -15,7 +15,8 @@ const paymentSchema = z.object({
   studentId: z.string().min(1, 'Öğrenci seçimi zorunludur'),
   feeTypeId: z.string().min(1, 'Ücret tipi seçimi zorunludur'),
   amount: z.string().min(1, 'Tutar zorunludur'),
-  dueDate: z.string().min(1, 'Vade tarihi zorunludur'),
+  installmentCount: z.string().min(1, 'Vade sayısı zorunludur'),
+  startDate: z.string().min(1, 'Başlangıç tarihi zorunludur'),
   notes: z.string().optional()
 })
 
@@ -52,13 +53,15 @@ export function PaymentForm({
       studentId: initialData.studentId,
       feeTypeId: initialData.feeTypeId,
       amount: initialData.amount.toString(),
-      dueDate: new Date(initialData.dueDate).toISOString().split('T')[0],
+      installmentCount: '1',
+      startDate: new Date(initialData.dueDate).toISOString().split('T')[0],
       notes: initialData.notes || ''
     } : {
       studentId: '',
       feeTypeId: '',
       amount: '',
-      dueDate: '',
+      installmentCount: '1',
+      startDate: new Date().toISOString().split('T')[0],
       notes: ''
     }
   })
@@ -72,38 +75,29 @@ export function PaymentForm({
   }, [])
 
   useEffect(() => {
-    // Auto-fill amount and due date when fee type is selected
+    // Auto-fill amount and installment count when fee type is selected
     if (feeTypeId && !initialData) {
       const selectedFeeType = feeTypes.find(ft => ft.id === feeTypeId)
       if (selectedFeeType) {
         setValue('amount', selectedFeeType.amount.toString())
         
-        // Calculate due date based on fee period
-        const today = new Date()
-        let dueDate = new Date(today)
-        
+        // Set default installment count based on period
         switch (selectedFeeType.period) {
           case 'MONTHLY':
-            dueDate.setMonth(dueDate.getMonth() + 1)
+            setValue('installmentCount', '12') // 12 months
             break
           case 'QUARTERLY':
-            dueDate.setMonth(dueDate.getMonth() + 3)
+            setValue('installmentCount', '4') // 4 quarters
             break
           case 'YEARLY':
-            dueDate.setFullYear(dueDate.getFullYear() + 1)
+            setValue('installmentCount', '1') // 1 year
             break
           case 'ONE_TIME':
-            // For one-time payments, set due date to end of current month
-            dueDate.setMonth(dueDate.getMonth() + 1)
-            dueDate.setDate(0) // Last day of current month
+            setValue('installmentCount', '1') // Single payment
             break
           default:
-            dueDate.setMonth(dueDate.getMonth() + 1)
+            setValue('installmentCount', '1')
         }
-        
-        // Format date as YYYY-MM-DD for input
-        const formattedDate = dueDate.toISOString().split('T')[0]
-        setValue('dueDate', formattedDate)
       }
     }
   }, [feeTypeId, feeTypes, initialData, setValue])
@@ -193,9 +187,9 @@ export function PaymentForm({
           )}
         </div>
 
-        {/* Amount */}
+        {/* Amount per Installment */}
         <div>
-          <Label htmlFor="amount">Tutar (₺) *</Label>
+          <Label htmlFor="amount">Vade Başına Tutar (₺) *</Label>
           <Input
             id="amount"
             type="number"
@@ -209,24 +203,47 @@ export function PaymentForm({
           )}
         </div>
 
-        {/* Due Date */}
+        {/* Installment Count */}
         <div>
-          <Label htmlFor="dueDate">Vade Tarihi *</Label>
+          <Label htmlFor="installmentCount">Vade Sayısı *</Label>
           <Input
-            id="dueDate"
-            type="date"
-            {...register('dueDate')}
-            className={errors.dueDate ? 'border-red-500' : ''}
+            id="installmentCount"
+            type="number"
+            min="1"
+            max="12"
+            {...register('installmentCount')}
+            className={errors.installmentCount ? 'border-red-500' : ''}
+            placeholder="1"
           />
-          {errors.dueDate && (
-            <p className="text-sm text-red-600 mt-1">{errors.dueDate.message}</p>
+          {errors.installmentCount && (
+            <p className="text-sm text-red-600 mt-1">{errors.installmentCount.message}</p>
+          )}
+          <p className="text-sm text-muted-foreground mt-1">
+            Toplam: {new Intl.NumberFormat('tr-TR', {
+              style: 'currency',
+              currency: 'TRY'
+            }).format(parseFloat(watch('amount') || '0') * parseInt(watch('installmentCount') || '1'))}
+          </p>
+        </div>
+
+        {/* Start Date */}
+        <div>
+          <Label htmlFor="startDate">İlk Vade Tarihi *</Label>
+          <Input
+            id="startDate"
+            type="date"
+            {...register('startDate')}
+            className={errors.startDate ? 'border-red-500' : ''}
+          />
+          {errors.startDate && (
+            <p className="text-sm text-red-600 mt-1">{errors.startDate.message}</p>
           )}
           {feeTypeId && (
             <p className="text-sm text-muted-foreground mt-1">
-              {feeTypes.find(ft => ft.id === feeTypeId)?.period === 'MONTHLY' && 'Aylık ödeme için vade tarihi otomatik hesaplandı'}
-              {feeTypes.find(ft => ft.id === feeTypeId)?.period === 'QUARTERLY' && '3 aylık ödeme için vade tarihi otomatik hesaplandı'}
-              {feeTypes.find(ft => ft.id === feeTypeId)?.period === 'YEARLY' && 'Yıllık ödeme için vade tarihi otomatik hesaplandı'}
-              {feeTypes.find(ft => ft.id === feeTypeId)?.period === 'ONE_TIME' && 'Tek seferlik ödeme için vade tarihi ayın sonuna ayarlandı'}
+              {feeTypes.find(ft => ft.id === feeTypeId)?.period === 'MONTHLY' && 'Her ay bir vade oluşturulacak'}
+              {feeTypes.find(ft => ft.id === feeTypeId)?.period === 'QUARTERLY' && 'Her 3 ayda bir vade oluşturulacak'}
+              {feeTypes.find(ft => ft.id === feeTypeId)?.period === 'YEARLY' && 'Her yıl bir vade oluşturulacak'}
+              {feeTypes.find(ft => ft.id === feeTypeId)?.period === 'ONE_TIME' && 'Tek seferlik ödeme oluşturulacak'}
             </p>
           )}
         </div>

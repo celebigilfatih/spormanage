@@ -26,8 +26,7 @@ export async function GET(request: NextRequest) {
         OR: [
           { firstName: { contains: query, mode: 'insensitive' } },
           { lastName: { contains: query, mode: 'insensitive' } },
-          { phone: { contains: query } },
-          { email: { contains: query, mode: 'insensitive' } }
+          { phone: { contains: query } }
         ],
         isActive: true
       },

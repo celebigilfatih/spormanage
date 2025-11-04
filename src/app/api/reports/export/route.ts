@@ -91,16 +91,3 @@ Rapor Oluşturma Zamanı: ${new Date().toLocaleString('tr-TR')}
 
   return content;
 }
-
-// Helper function for future implementation
-export async function generatePDFReport(data: any): Promise<Buffer> {
-  // Implementation would use PDFKit or similar library
-  // For now, return a simple buffer
-  return Buffer.from('PDF content placeholder');
-}
-
-export async function generateExcelReport(data: any): Promise<Buffer> {
-  // Implementation would use ExcelJS or similar library
-  // For now, return a simple buffer
-  return Buffer.from('Excel content placeholder');
-}

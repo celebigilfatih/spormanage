@@ -1,4 +1,5 @@
-import { NotificationMethod, NotificationType } from '@/types';
+import { NotificationMethod as NotificationMethodEnum, NotificationType as NotificationTypeEnum } from '@/types';
+import { NotificationMethod, NotificationType } from '@prisma/client';
 
 export interface NotificationData {
   id: string;
@@ -6,8 +7,8 @@ export interface NotificationData {
   message: string;
   type: NotificationType;
   method: NotificationMethod;
-  recipientEmail?: string;
-  recipientPhone?: string;
+  recipientEmail?: string | null;
+  recipientPhone?: string | null;
   studentName?: string;
 }
 
@@ -40,11 +41,11 @@ export class NotificationService {
   }> {
     try {
       switch (notification.method) {
-        case 'EMAIL':
+        case NotificationMethodEnum.EMAIL:
           return await this.sendEmail(notification);
-        case 'SMS':
+        case NotificationMethodEnum.SMS:
           return await this.sendSMS(notification);
-        case 'IN_APP':
+        case NotificationMethodEnum.IN_APP:
           return { success: true, sentAt: new Date() }; // In-app notifications are handled by UI
         default:
           return { success: false, error: 'Unknown notification method' };
@@ -203,11 +204,11 @@ export class NotificationService {
 
   private static getTypeBadgeClass(type: NotificationType): string {
     switch (type) {
-      case 'PAYMENT_REMINDER':
-      case 'PAYMENT_OVERDUE':
+      case NotificationTypeEnum.PAYMENT_REMINDER:
+      case NotificationTypeEnum.PAYMENT_OVERDUE:
         return 'type-payment';
-      case 'TRAINING_CANCELLED':
-      case 'ATTENDANCE_REMINDER':
+      case NotificationTypeEnum.TRAINING_CANCELLED:
+      case NotificationTypeEnum.ATTENDANCE_REMINDER:
         return 'type-training';
       default:
         return 'type-general';
@@ -215,7 +216,7 @@ export class NotificationService {
   }
 
   private static getTypeLabel(type: NotificationType): string {
-    const labels = {
+    const labels: Record<string, string> = {
       PAYMENT_REMINDER: 'Ödeme Hatırlatması',
       PAYMENT_OVERDUE: 'Geciken Ödeme',
       ATTENDANCE_REMINDER: 'Devamsızlık Uyarısı',

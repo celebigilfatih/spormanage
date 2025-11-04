@@ -24,6 +24,9 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
     const groupId = searchParams.get('groupId')
     const overdue = searchParams.get('overdue') === 'true'
+    const search = searchParams.get('search') || ''
+    const sortField = searchParams.get('sortField') || 'dueDate'
+    const sortDirection = searchParams.get('sortDirection') || 'asc'
 
     const skip = (page - 1) * limit
     const where: any = {}
@@ -45,11 +48,36 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Search by student name
+    if (search) {
+      where.student = {
+        ...where.student,
+        OR: [
+          { firstName: { contains: search, mode: 'insensitive' } },
+          { lastName: { contains: search, mode: 'insensitive' } }
+        ]
+      }
+    }
+
     if (overdue) {
       where.AND = [
         { status: { in: [PaymentStatus.PENDING, PaymentStatus.PARTIAL] } },
         { dueDate: { lt: new Date() } }
       ]
+    }
+
+    // Determine sorting
+    let orderBy: any = { dueDate: 'asc' }
+    if (sortField === 'amount') {
+      orderBy = { amount: sortDirection }
+    } else if (sortField === 'dueDate') {
+      orderBy = { dueDate: sortDirection }
+    } else if (sortField === 'student') {
+      orderBy = {
+        student: {
+          lastName: sortDirection
+        }
+      }
     }
 
     const [payments, total] = await Promise.all([
@@ -72,10 +100,7 @@ export async function GET(request: NextRequest) {
             select: { name: true }
           }
         },
-        orderBy: [
-          { dueDate: 'asc' },
-          { createdAt: 'desc' }
-        ]
+        orderBy
       }),
       prisma.payment.count({ where })
     ])
@@ -142,11 +167,11 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await request.json()
-    const { studentId, feeTypeId, amount, dueDate, notes } = data
+    const { studentId, feeTypeId, amount, installmentCount = 1, startDate, notes } = data
 
-    if (!studentId || !feeTypeId || !amount || !dueDate) {
+    if (!studentId || !feeTypeId || !amount || !startDate) {
       return NextResponse.json(
-        { error: 'Student, fee type, amount, and due date are required' },
+        { error: 'Student, fee type, amount, and start date are required' },
         { status: 400 }
       )
     }
@@ -171,28 +196,76 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const payment = await prisma.payment.create({
-      data: {
+    const paymentAmount = parseFloat(amount)
+    const numInstallments = parseInt(installmentCount) || 1
+    const baseDate = new Date(startDate)
+
+    // Generate a unique plan ID for grouping installments
+    const planId = `PLAN_${Date.now()}_${studentId.substring(0, 8)}`
+
+    // Calculate interval based on fee period
+    let monthsInterval = 1
+    switch (feeType.period) {
+      case 'MONTHLY':
+        monthsInterval = 1
+        break
+      case 'QUARTERLY':
+        monthsInterval = 3
+        break
+      case 'YEARLY':
+        monthsInterval = 12
+        break
+      case 'ONE_TIME':
+        monthsInterval = 1
+        break
+      default:
+        monthsInterval = 1
+    }
+
+    // Create multiple payment records
+    const payments = []
+    for (let i = 0; i < numInstallments; i++) {
+      const dueDate = new Date(baseDate)
+      dueDate.setMonth(dueDate.getMonth() + (i * monthsInterval))
+      
+      payments.push({
         studentId,
         feeTypeId,
-        amount: parseFloat(amount),
-        dueDate: new Date(dueDate),
-        notes,
+        amount: paymentAmount,
+        dueDate,
+        notes: numInstallments > 1 
+          ? `${notes ? notes + ' - ' : ''}${planId} - Vade ${i + 1}/${numInstallments}` 
+          : notes,
         createdById: user.id,
-        status: PaymentStatus.PENDING
-      },
-      include: {
-        student: {
-          include: { group: true }
-        },
-        feeType: true,
-        createdBy: {
-          select: { name: true }
-        }
-      }
-    })
+        status: PaymentStatus.PENDING,
+        referenceNumber: numInstallments > 1 ? planId : null
+      })
+    }
 
-    return NextResponse.json(payment, { status: 201 })
+    // Create all payments in a transaction
+    const createdPayments = await prisma.$transaction(
+      payments.map(payment => 
+        prisma.payment.create({
+          data: payment,
+          include: {
+            student: {
+              include: { group: true }
+            },
+            feeType: true,
+            createdBy: {
+              select: { name: true }
+            }
+          }
+        })
+      )
+    )
+
+    return NextResponse.json({
+      message: `${createdPayments.length} ödeme kaydı oluşturuldu`,
+      count: createdPayments.length,
+      planId: numInstallments > 1 ? planId : null,
+      payments: createdPayments
+    }, { status: 201 })
   } catch (error) {
     console.error('Failed to create payment:', error)
     return NextResponse.json(

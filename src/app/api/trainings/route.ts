@@ -10,12 +10,22 @@ async function getCurrentUser(request: NextRequest) {
   if (!payload) return null
   
   return await prisma.user.findUnique({
-    where: { id: payload.userId }
+    where: { id: payload.userId },
+    include: {
+      trainer: {
+        include: {
+          groupsAsCoach: { select: { id: true } },
+          groupsAsAssistant: { select: { id: true } }
+        }
+      }
+    }
   })
 }
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await getCurrentUser(request)
+    
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
@@ -26,6 +36,15 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit
     const where: any = {}
+
+    // If user is TRAINER, filter by their groups
+    if (user && user.role === 'TRAINER' && user.trainer) {
+      const trainerGroupIds = [
+        ...user.trainer.groupsAsCoach.map(g => g.id),
+        ...user.trainer.groupsAsAssistant.map(g => g.id)
+      ]
+      where.groupId = { in: trainerGroupIds }
+    }
 
     if (groupId) {
       where.groupId = groupId
@@ -71,7 +90,11 @@ export async function GET(request: NextRequest) {
             } : undefined,
             include: {
               _count: {
-                select: { attendances: true }
+                select: { 
+                  attendances: {
+                    where: { status: 'PRESENT' }
+                  }
+                }
               }
             },
             orderBy: { date: 'asc' }
@@ -197,7 +220,11 @@ export async function POST(request: NextRequest) {
         sessions: {
           include: {
             _count: {
-              select: { attendances: true }
+              select: { 
+                attendances: {
+                  where: { status: 'PRESENT' }
+                }
+              }
             }
           }
         }

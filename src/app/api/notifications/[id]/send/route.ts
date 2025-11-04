@@ -17,16 +17,17 @@ async function getCurrentUser(request: NextRequest) {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const user = await getCurrentUser(request);
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const notification = await prisma.notification.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         student: {
           include: {
@@ -86,7 +87,7 @@ export async function POST(
 
       // Update notification status
       const updatedNotification = await prisma.notification.update({
-        where: { id: params.id },
+        where: { id },
         data: {
           status: success ? 'SENT' : 'FAILED',
           sentAt: success ? new Date() : null
@@ -128,7 +129,7 @@ export async function POST(
       
       // Update notification status to FAILED
       await prisma.notification.update({
-        where: { id: params.id },
+        where: { id },
         data: { status: 'FAILED' }
       });
 

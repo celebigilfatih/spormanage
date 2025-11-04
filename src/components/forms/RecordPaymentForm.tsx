@@ -123,7 +123,7 @@ export function RecordPaymentForm({
               <SelectItem value={PaymentMethod.CASH}>Nakit</SelectItem>
               <SelectItem value={PaymentMethod.CREDIT_CARD}>Kredi Kartı</SelectItem>
               <SelectItem value={PaymentMethod.BANK_TRANSFER}>Banka Transferi</SelectItem>
-              <SelectItem value={PaymentMethod.CHECK}>Çek</SelectItem>
+              <SelectItem value={PaymentMethod.CHEQUE}>Çek</SelectItem>
             </SelectContent>
           </Select>
           {errors.paymentMethod && (

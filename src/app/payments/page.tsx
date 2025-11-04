@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import AppLayout from '@/components/AppLayout'
@@ -9,6 +9,7 @@ import { RecordPaymentForm } from '@/components/forms/RecordPaymentForm'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { useToast } from '@/hooks/use-toast'
 import { 
   Plus, 
   Search, 
@@ -22,7 +23,10 @@ import {
   Filter,
   Edit,
   X,
-  Trash2
+  Trash2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react'
 import { Payment, Group, FeeType, PaymentStatus, PaymentMethod, UserRole } from '@/types'
 import { AuthService } from '@/lib/auth'
@@ -48,6 +52,7 @@ interface PaymentsResponse {
 export default function PaymentsPage() {
   const { user } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
   const [payments, setPayments] = useState<Payment[]>([])
   const [groups, setGroups] = useState<Group[]>([])
   const [feeTypes, setFeeTypes] = useState<FeeType[]>([])
@@ -59,10 +64,15 @@ export default function PaymentsPage() {
   })
   const [loading, setLoading] = useState(true)
   
-  // Filters
+  // Filters and search
+  const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [groupFilter, setGroupFilter] = useState('all')
   const [overdueFilter, setOverdueFilter] = useState(false)
+  
+  // Sorting
+  const [sortField, setSortField] = useState<'dueDate' | 'amount' | 'student'>('dueDate')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -78,14 +88,62 @@ export default function PaymentsPage() {
   const [showRecordForm, setShowRecordForm] = useState(false)
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [groupByPlan, setGroupByPlan] = useState(true) // New state for grouping
 
   const canManagePayments = user && AuthService.canManagePayments(user.role as UserRole)
+
+  // Group payments by reference number (payment plan)
+  const groupPaymentsByPlan = (payments: Payment[]) => {
+    if (!groupByPlan) return payments.map(p => ({ plan: null as string | null, payments: [p] }))
+
+    const grouped = new Map<string, Payment[]>()
+    const ungrouped: Payment[] = []
+    
+    payments.forEach(payment => {
+      if (payment.referenceNumber) {
+        const planId = payment.referenceNumber
+        if (!grouped.has(planId)) {
+          grouped.set(planId, [])
+        }
+        grouped.get(planId)!.push(payment)
+      } else {
+        ungrouped.push(payment)
+      }
+    })
+
+    const result: { plan: string | null; payments: Payment[] }[] = Array.from(grouped.entries()).map(([plan, payments]) => ({
+      plan,
+      payments: payments.sort((a, b) => 
+        new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+      )
+    }))
+
+    // Add ungrouped payments
+    ungrouped.forEach(payment => {
+      result.push({ plan: null as string | null, payments: [payment] })
+    })
+
+    return result
+  }
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (currentPage !== 1) {
+        setCurrentPage(1) // Reset to page 1 on new search
+      } else {
+        fetchPayments()
+      }
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [searchTerm])
 
   useEffect(() => {
     fetchPayments()
     fetchGroups()
     fetchFeeTypes()
-  }, [currentPage, statusFilter, groupFilter, overdueFilter])
+  }, [currentPage, statusFilter, groupFilter, overdueFilter, sortField, sortDirection])
 
   const fetchPayments = async () => {
     try {
@@ -96,6 +154,9 @@ export default function PaymentsPage() {
         status: statusFilter,
         groupId: groupFilter,
         overdue: overdueFilter.toString(),
+        search: searchTerm,
+        sortField: sortField,
+        sortDirection: sortDirection
       })
 
       const response = await fetch(`/api/payments?${params}`)
@@ -107,6 +168,11 @@ export default function PaymentsPage() {
       }
     } catch (error) {
       console.error('Failed to fetch payments:', error)
+      toast({
+        variant: "destructive",
+        title: "❌ Hata!",
+        description: "Ödemeler yüklenemedi"
+      })
     } finally {
       setLoading(false)
     }
@@ -170,25 +236,34 @@ export default function PaymentsPage() {
       })
 
       if (response.ok) {
+        const result = await response.json()
         setShowAddForm(false)
-        fetchPayments()
-        alert('Ödeme kaydı başarıyla oluşturuldu!')
+        await fetchPayments() // Ensure we wait for the fetch to complete
+        toast({
+          title: "✅ Başarılı!",
+          description: result.message || `${result.count || 1} ödeme kaydı oluşturuldu`
+        })
       } else {
         const error = await response.json()
-        alert('Hata: ' + (error.error || 'Ödeme oluşturulamadı'))
+        toast({
+          variant: "destructive",
+          title: "❌ Hata!",
+          description: error.error || 'Ödeme oluşturulamadı'
+        })
       }
     } catch (error) {
-      alert('Ödeme kaydı oluşturulurken bir hata oluştu')
+      console.error('Error creating payment:', error)
+      toast({
+        variant: "destructive",
+        title: "❌ Hata!",
+        description: 'Ödeme kaydı oluşturulurken bir hata oluştu'
+      })
     } finally {
       setIsSubmitting(false)
     }
   }
 
   const handleDeletePayment = async (paymentId: string) => {
-    if (!confirm('Bu ödeme kaydını silmek istediğinizden emin misiniz? Ödeme iptal edilecek ve listeden kaldırılacak.')) {
-      return
-    }
-
     try {
       const response = await fetch(`/api/payments/${paymentId}`, {
         method: 'DELETE',
@@ -196,14 +271,24 @@ export default function PaymentsPage() {
 
       if (response.ok) {
         await fetchPayments()
-        alert('Ödeme kaydı başarıyla silindi ve iptal edildi!')
+        toast({
+          title: "✅ Silindi!",
+          description: "Ödeme kaydı silindi ve iptal edildi"
+        })
       } else {
         const error = await response.json()
-        alert('Hata: ' + (error.error || 'Ödeme silinemedi'))
+        toast({
+          variant: "destructive",
+          title: "❌ Hata!",
+          description: error.error || 'Ödeme silinemedi'
+        })
       }
     } catch (error) {
-      console.error('Delete error:', error)
-      alert('Ödeme silinirken bir hata oluştu')
+      toast({
+        variant: "destructive",
+        title: "❌ Hata!",
+        description: 'Ödeme silinirken bir hata oluştu'
+      })
     }
   }
 
@@ -222,13 +307,24 @@ export default function PaymentsPage() {
         setShowEditForm(false)
         setSelectedPayment(null)
         fetchPayments()
-        alert('Ödeme kaydı başarıyla güncellendi!')
+        toast({
+          title: "✅ Güncellendi!",
+          description: "Ödeme kaydı güncellendi"
+        })
       } else {
         const error = await response.json()
-        alert('Hata: ' + (error.error || 'Ödeme güncellenemedi'))
+        toast({
+          variant: "destructive",
+          title: "❌ Hata!",
+          description: error.error || 'Ödeme güncellenemedi'
+        })
       }
     } catch (error) {
-      alert('Ödeme güncellenirken bir hata oluştu')
+      toast({
+        variant: "destructive",
+        title: "❌ Hata!",
+        description: 'Ödeme güncellenirken bir hata oluştu'
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -252,13 +348,24 @@ export default function PaymentsPage() {
         setShowRecordForm(false)
         setSelectedPayment(null)
         fetchPayments()
-        alert('Ödeme başarıyla kaydedildi!')
+        toast({
+          title: "✅ Tahsil Edildi!",
+          description: "Ödeme başarıyla kaydedildi"
+        })
       } else {
         const error = await response.json()
-        alert('Hata: ' + (error.error || 'Ödeme kaydedilemedi'))
+        toast({
+          variant: "destructive",
+          title: "❌ Hata!",
+          description: error.error || 'Ödeme kaydedilemedi'
+        })
       }
     } catch (error) {
-      alert('Ödeme kaydedilirken bir hata oluştu')
+      toast({
+        variant: "destructive",
+        title: "❌ Hata!",
+        description: 'Ödeme kaydedilirken bir hata oluştu'
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -282,11 +389,24 @@ export default function PaymentsPage() {
         setSelectedPayments([])
         setShowBulkActions(false)
         fetchPayments()
-        // TODO: Show success toast
+        toast({
+          title: "✅ Toplu Tahsilat!",
+          description: `${selectedPayments.length} ödeme tahsil edildi`
+        })
+      } else {
+        const error = await response.json()
+        toast({
+          variant: "destructive",
+          title: "❌ Hata!",
+          description: error.error || 'Toplu tahsilat başarısız'
+        })
       }
     } catch (error) {
-      console.error('Failed to process bulk collection:', error)
-      // TODO: Show error toast
+      toast({
+        variant: "destructive",
+        title: "❌ Hata!",
+        description: 'Toplu tahsilat sırasında hata oluştu'
+      })
     }
   }
 
@@ -315,6 +435,22 @@ export default function PaymentsPage() {
   const isOverdue = (payment: Payment) => {
     return (payment.status === PaymentStatus.PENDING || payment.status === PaymentStatus.PARTIAL) &&
            new Date(payment.dueDate) < new Date()
+  }
+
+  const handleSort = (field: 'dueDate' | 'amount' | 'student') => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }
+
+  const SortIcon = ({ field }: { field: 'dueDate' | 'amount' | 'student' }) => {
+    if (sortField !== field) return <ArrowUpDown className="h-4 w-4 ml-1 inline opacity-30" />
+    return sortDirection === 'asc' ? 
+      <ArrowUp className="h-4 w-4 ml-1 inline" /> : 
+      <ArrowDown className="h-4 w-4 ml-1 inline" />
   }
 
   // Show forms
@@ -415,6 +551,18 @@ export default function PaymentsPage() {
             {canManagePayments && (
               <div className="flex space-x-3">
                 <Button
+                  variant={showBulkActions ? "default" : "outline"}
+                  onClick={() => {
+                    setShowBulkActions(!showBulkActions)
+                    if (showBulkActions) {
+                      setSelectedPayments([])
+                    }
+                  }}
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  {showBulkActions ? 'Toplu Seçimi Kapat' : 'Toplu Seçim'}
+                </Button>
+                <Button
                   variant="outline"
                   onClick={() => router.push('/payments/bulk')}
                 >
@@ -435,6 +583,28 @@ export default function PaymentsPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Sticky Summary Bar - Gecikmiş Ödemeler */}
+        {summary.overdueCount > 0 && (
+          <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white p-4 rounded-lg shadow-lg mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <AlertTriangle className="h-6 w-6 animate-pulse" />
+                <div>
+                  <p className="font-bold text-lg">{summary.overdueCount} Gecikmiş Ödeme!</p>
+                  <p className="text-sm opacity-90">Toplam {formatCurrency(summary.totalAmount - summary.totalPaid)} bekleyen tutar var</p>
+                </div>
+              </div>
+              <Button
+                onClick={() => setOverdueFilter(true)}
+                className="bg-white text-red-600 hover:bg-red-50"
+                size="sm"
+              >
+                Gecikenleri Göster
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow">
@@ -488,7 +658,22 @@ export default function PaymentsPage() {
 
         {/* Filters */}
         <div className="bg-white p-6 rounded-lg shadow mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Ara
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Öğrenci adı..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Durum
@@ -536,7 +721,7 @@ export default function PaymentsPage() {
                   className="rounded border-gray-300"
                 />
                 <label htmlFor="overdue" className="text-sm font-medium text-gray-700">
-                  Sadece gecikmişleri göster
+                  Sadece gecikmişler
                 </label>
               </div>
             </div>
@@ -544,6 +729,7 @@ export default function PaymentsPage() {
             <div className="flex items-end">
               <Button 
                 onClick={() => {
+                  setSearchTerm('')
                   setStatusFilter('all')
                   setGroupFilter('all')
                   setOverdueFilter(false)
@@ -553,6 +739,16 @@ export default function PaymentsPage() {
                 className="w-full"
               >
                 Filtreleri Sıfırla
+              </Button>
+            </div>
+
+            <div className="flex items-end">
+              <Button
+                onClick={() => setGroupByPlan(!groupByPlan)}
+                variant={groupByPlan ? "default" : "outline"}
+                className="w-full"
+              >
+                {groupByPlan ? 'Tümünü Göster' : 'Planları Grupla'}
               </Button>
             </div>
           </div>
@@ -629,8 +825,11 @@ export default function PaymentsPage() {
                         />
                       </th>
                     )}
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Öğrenci
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('student')}>
+                      <div className="flex items-center">
+                        Öğrenci
+                        <SortIcon field="student" />
+                      </div>
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Ücret Tipi
@@ -638,8 +837,11 @@ export default function PaymentsPage() {
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Grup
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tutar
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('amount')}>
+                      <div className="flex items-center">
+                        Tutar
+                        <SortIcon field="amount" />
+                      </div>
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Ödenen
@@ -647,8 +849,11 @@ export default function PaymentsPage() {
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Kalan
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Vade Tarihi
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('dueDate')}>
+                      <div className="flex items-center">
+                        Vade Tarihi
+                        <SortIcon field="dueDate" />
+                      </div>
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Durum
@@ -659,111 +864,181 @@ export default function PaymentsPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {payments.map((payment) => (
-                    <tr key={payment.id} className="hover:bg-gray-50">
-                      {showBulkActions && canManagePayments && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {(payment.status !== PaymentStatus.PAID && payment.status !== PaymentStatus.CANCELLED) ? (
-                            <input
-                              type="checkbox"
-                              checked={selectedPayments.includes(payment.id)}
-                              onChange={() => togglePaymentSelection(payment.id)}
-                              className="rounded border-gray-300"
-                            />
-                          ) : null}
-                        </td>
-                      )}
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {payment.student?.firstName} {payment.student?.lastName}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{payment.feeType?.name}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {payment.student?.group ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {payment.student.group.name}
-                          </span>
-                        ) : (
-                          <span className="text-sm text-gray-400">-</span>
+                  {groupPaymentsByPlan(payments).map((group, groupIndex) => {
+                    const isGrouped = group.plan !== null
+                    const totalPlanAmount = group.payments.reduce((sum, p) => sum + p.amount, 0)
+                    const totalPlanPaid = group.payments.reduce((sum, p) => sum + (p.paidAmount || 0), 0)
+                    const allPaid = group.payments.every(p => p.status === PaymentStatus.PAID)
+                    const anyOverdue = group.payments.some(p => isOverdue(p))
+
+                    return (
+                      <>
+                        {isGrouped && (
+                          <tr className="bg-blue-50 border-t-2 border-blue-200">
+                            <td colSpan={showBulkActions && canManagePayments ? 10 : 9} className="px-6 py-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                  <Calendar className="h-5 w-5 text-blue-600" />
+                                  <div>
+                                    <span className="font-semibold text-gray-900">
+                                      Ödeme Planı: {group.payments[0].student?.firstName} {group.payments[0].student?.lastName}
+                                    </span>
+                                    <span className="text-sm text-gray-600 ml-3">
+                                      {group.payments.length} Vade
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center space-x-4">
+                                  <div className="text-right">
+                                    <div className="text-sm font-medium text-gray-900">
+                                      Toplam: {formatCurrency(totalPlanAmount)}
+                                    </div>
+                                    <div className="text-xs text-gray-600">
+                                      Ödenen: {formatCurrency(totalPlanPaid)} | Kalan: {formatCurrency(totalPlanAmount - totalPlanPaid)}
+                                    </div>
+                                  </div>
+                                  {allPaid ? (
+                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                      <CheckCircle className="h-4 w-4 mr-1" />
+                                      Tamamlandı
+                                    </span>
+                                  ) : anyOverdue ? (
+                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                      <AlertTriangle className="h-4 w-4 mr-1" />
+                                      Gecikmiş
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                      <Clock className="h-4 w-4 mr-1" />
+                                      Devam Ediyor
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
                         )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {formatCurrency(payment.amount)}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {payment.paidAmount ? formatCurrency(payment.paidAmount) : '-'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {payment.paidAmount ? formatCurrency(payment.amount - (payment.paidAmount || 0)) : formatCurrency(payment.amount)}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center space-x-2">
-                          <div className="text-sm text-gray-900">
-                            {new Date(payment.dueDate).toLocaleDateString('tr-TR')}
-                          </div>
-                          {isOverdue(payment) && (
-                            <AlertTriangle className="h-4 w-4 text-red-500" />
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {getStatusBadge(payment.status)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex justify-end space-x-2">
-                          {(payment.status === PaymentStatus.PENDING || payment.status === PaymentStatus.PARTIAL) && canManagePayments && (
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                setSelectedPayment(payment)
-                                setShowRecordForm(true)
-                              }}
-                              className="bg-green-600 hover:bg-green-700"
+                        {group.payments.map((payment) => {
+                          const overdueRow = isOverdue(payment)
+                          return (
+                            <tr 
+                              key={payment.id} 
+                              className={`hover:bg-gray-50 ${
+                                overdueRow ? 'bg-red-50 hover:bg-red-100' : ''
+                              } ${isGrouped ? 'bg-blue-50/30' : ''}`}
                             >
-                              Ödeme Kaydet
-                            </Button>
-                          )}
-                          {canManagePayments && (
-                            <>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedPayment(payment)
-                                  setShowEditForm(true)
-                                }}
-                                title="Düzenle"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => handleDeletePayment(payment.id)}
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                title="Sil"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                              {showBulkActions && canManagePayments && (
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  {(payment.status !== PaymentStatus.PAID && payment.status !== PaymentStatus.CANCELLED) ? (
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedPayments.includes(payment.id)}
+                                      onChange={() => togglePaymentSelection(payment.id)}
+                                      className="rounded border-gray-300"
+                                    />
+                                  ) : null}
+                                </td>
+                              )}
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <div>
+                                    {isGrouped && (
+                                      <span className="text-xs text-gray-500 mr-2">
+                                        {group.payments.findIndex(p => p.id === payment.id) + 1}/{group.payments.length}
+                                      </span>
+                                    )}
+                                    <span className="text-sm font-medium text-gray-900">
+                                      {payment.student?.firstName} {payment.student?.lastName}
+                                    </span>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">{payment.feeType?.name}</div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                {payment.student?.group ? (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    {payment.student.group.name}
+                                  </span>
+                                ) : (
+                                  <span className="text-sm text-gray-400">-</span>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {formatCurrency(payment.amount)}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">
+                                  {payment.paidAmount ? formatCurrency(payment.paidAmount) : '-'}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {payment.paidAmount ? formatCurrency(payment.amount - (payment.paidAmount || 0)) : formatCurrency(payment.amount)}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center space-x-2">
+                                  <div className="text-sm text-gray-900">
+                                    {new Date(payment.dueDate).toLocaleDateString('tr-TR')}
+                                  </div>
+                                  {isOverdue(payment) && (
+                                    <AlertTriangle className="h-4 w-4 text-red-500" />
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                {getStatusBadge(payment.status)}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <div className="flex justify-end space-x-2">
+                                  {(payment.status === PaymentStatus.PENDING || payment.status === PaymentStatus.PARTIAL) && canManagePayments && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedPayment(payment)
+                                        setShowRecordForm(true)
+                                      }}
+                                      className="bg-green-600 hover:bg-green-700"
+                                    >
+                                      Ödeme Kaydet
+                                    </Button>
+                                  )}
+                                  {canManagePayments && (
+                                    <>
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm"
+                                        onClick={() => {
+                                          setSelectedPayment(payment)
+                                          setShowEditForm(true)
+                                        }}
+                                        title="Düzenle"
+                                      >
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm"
+                                        onClick={() => handleDeletePayment(payment.id)}
+                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        title="Sil"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter, usePathname } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
 import { 
   Trophy, 
   Users, 
@@ -14,13 +15,15 @@ import {
   LayoutDashboard,
   UserCheck,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Shield
 } from 'lucide-react'
 import { useState } from 'react'
 
 export default function Sidebar() {
   const router = useRouter()
   const pathname = usePathname()
+  const { user } = useAuth()
   const [collapsed, setCollapsed] = useState(false)
 
   const navItems = [
@@ -34,6 +37,7 @@ export default function Sidebar() {
     { name: 'Notlar', route: '/notes', icon: FileText },
     { name: 'Bildirimler', route: '/notifications', icon: Bell },
     { name: 'Raporlar', route: '/reports', icon: TrendingUp },
+    { name: 'Kullanıcılar', route: '/users', icon: Shield, adminOnly: true },
     { name: 'Ayarlar', route: '/settings', icon: Settings }
   ]
 
@@ -75,7 +79,9 @@ export default function Sidebar() {
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4">
           <ul className="space-y-1 px-3">
-            {navItems.map((item) => {
+            {navItems
+              .filter(item => !item.adminOnly || user?.role === 'ADMIN')
+              .map((item) => {
               const Icon = item.icon
               const active = isActive(item.route)
               return (

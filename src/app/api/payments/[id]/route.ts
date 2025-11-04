@@ -229,22 +229,38 @@ export async function DELETE(
       )
     }
 
-    // Allow deleting all payments (removed restriction)
-
-    // Soft delete by marking as cancelled
-    const deletedPayment = await prisma.payment.update({
+    // Mark payment as CANCELLED instead of deleting
+    const cancelledPayment = await prisma.payment.update({
       where: { id: paymentId },
       data: {
         status: PaymentStatus.CANCELLED,
-        notes: `${payment.notes ? payment.notes + ' | ' : ''}DELETED by ${user.name}`
+        notes: payment.notes ? `${payment.notes} | CANCELLED by ${user.name}` : `CANCELLED by ${user.name}`
+      },
+      include: {
+        student: {
+          include: { 
+            group: true,
+            parents: {
+              where: { isPrimary: true },
+              take: 1
+            }
+          }
+        },
+        feeType: true,
+        createdBy: {
+          select: { name: true }
+        }
       }
     })
 
-    return NextResponse.json({ message: 'Payment deleted successfully' })
+    return NextResponse.json({ 
+      message: 'Payment cancelled successfully',
+      payment: cancelledPayment 
+    })
   } catch (error) {
-    console.error('Failed to delete payment:', error)
+    console.error('Failed to reset payment:', error)
     return NextResponse.json(
-      { error: 'Failed to delete payment' },
+      { error: 'Failed to reset payment' },
       { status: 500 }
     )
   }

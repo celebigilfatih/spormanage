@@ -132,26 +132,30 @@ export async function GET(request: NextRequest) {
     });
 
     // Attendance Statistics
-    const trainings = await prisma.training.findMany({
+    const trainingSessions = await prisma.trainingSession.findMany({
       where: {
         date: { gte: startDate },
-        ...(groupId ? { groupId } : {})
+        ...(groupId ? { training: { groupId } } : {})
       },
       include: {
         attendances: true,
-        group: {
+        training: {
           include: {
-            _count: {
-              select: { students: true }
+            group: {
+              include: {
+                _count: {
+                  select: { students: true }
+                }
+              }
             }
           }
         }
       }
     });
 
-    const totalSessions = trainings.length;
-    const totalPossibleAttendances = trainings.reduce((sum: number, t: any) => sum + (t.group?._count?.students || 0), 0);
-    const totalAttendances = trainings.reduce((sum: number, t: any) => sum + t.attendances.filter((a: any) => a.status === 'PRESENT').length, 0);
+    const totalSessions = trainingSessions.length;
+    const totalPossibleAttendances = trainingSessions.reduce((sum: number, s: any) => sum + (s.training?.group?._count?.students || 0), 0);
+    const totalAttendances = trainingSessions.reduce((sum: number, s: any) => sum + s.attendances.filter((a: any) => a.status === 'PRESENT').length, 0);
     const averageAttendanceRate = totalPossibleAttendances > 0 ? (totalAttendances / totalPossibleAttendances) * 100 : 0;
 
     // Attendance by group
@@ -160,13 +164,17 @@ export async function GET(request: NextRequest) {
       select: {
         name: true,
         trainings: {
-          where: { date: { gte: startDate } },
           include: {
-            attendances: {
-              where: { status: 'PRESENT' }
-            },
-            _count: {
-              select: { attendances: true }
+            sessions: {
+              where: { date: { gte: startDate } },
+              include: {
+                attendances: {
+                  where: { status: 'PRESENT' }
+                },
+                _count: {
+                  select: { attendances: true }
+                }
+              }
             }
           }
         },
@@ -177,9 +185,10 @@ export async function GET(request: NextRequest) {
     });
 
     const attendanceRatesByGroup = attendanceByGroup.map((group: any) => {
-      const totalTrainings = group.trainings.length;
-      const totalPossible = totalTrainings * group._count.students;
-      const totalPresent = group.trainings.reduce((sum: number, t: any) => sum + t.attendances.length, 0);
+      const allSessions = group.trainings.flatMap((t: any) => t.sessions);
+      const totalSessions = allSessions.length;
+      const totalPossible = totalSessions * group._count.students;
+      const totalPresent = allSessions.reduce((sum: number, s: any) => sum + s.attendances.length, 0);
       
       return {
         groupName: group.name,

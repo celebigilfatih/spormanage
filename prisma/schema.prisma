@@ -17,11 +17,13 @@ model User {
   name        String
   phone       String?
   role        UserRole @default(SECRETARY)
+  trainerId   String?  // If role is TRAINER, link to Trainer
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
   // Relations
+  trainer             Trainer?      @relation(fields: [trainerId], references: [id])
   createdStudents     Student[]     @relation("StudentCreator")
   createdPayments     Payment[]     @relation("PaymentCreator")
   createdNotes        Note[]        @relation("NoteCreator")
@@ -274,8 +276,9 @@ model Trainer {
   updatedAt   DateTime @updatedAt
   
   // Relations
-  groupsAsCoach    Group[] @relation("GroupCoach")
-  groupsAsAssistant Group[] @relation("GroupAssistantCoach")
+  user                 User[]  @relation() // Users linked to this trainer
+  groupsAsCoach        Group[] @relation("GroupCoach")
+  groupsAsAssistant    Group[] @relation("GroupAssistantCoach")
   
   @@map("trainers")
 }

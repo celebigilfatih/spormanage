@@ -38,8 +38,7 @@ export async function POST(request: NextRequest) {
               select: {
                 firstName: true,
                 lastName: true,
-                phone: true,
-                email: true
+                phone: true
               }
             }
           }
@@ -72,7 +71,7 @@ export async function POST(request: NextRequest) {
           message: notification.message,
           type: notification.type,
           method: notification.method,
-          recipientEmail: notification.recipientEmail || notification.student?.email,
+          recipientEmail: notification.recipientEmail,
           recipientPhone: notification.recipientPhone || notification.student?.phone,
           studentName: notification.student ? `${notification.student.firstName} ${notification.student.lastName}` : undefined
         };

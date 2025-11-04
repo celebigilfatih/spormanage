@@ -81,7 +81,11 @@ export async function GET(request: NextRequest) {
           },
           _count: {
             select: {
-              payments: true,
+              payments: {
+                where: {
+                  status: { not: 'CANCELLED' }
+                }
+              },
               notes: true,
               attendances: true
             }

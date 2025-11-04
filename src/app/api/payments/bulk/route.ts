@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Update all selected payments
-      const result = await prisma.$transaction(async (tx: typeof prisma) => {
+      const result = await prisma.$transaction(async (tx) => {
         const updatedPayments = []
         
         for (const paymentId of paymentIds) {

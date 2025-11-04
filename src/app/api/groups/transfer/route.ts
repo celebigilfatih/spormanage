@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Perform transfer in a transaction
-    const result = await prisma.$transaction(async (tx: typeof prisma) => {
+    const result = await prisma.$transaction(async (tx) => {
       // End current group history if student is in a group
       if (student.groupId) {
         await tx.groupHistory.updateMany({
