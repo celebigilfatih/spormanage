@@ -274,3 +274,77 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const user = await getCurrentUser(request)
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    if (!AuthService.canManagePayments(user.role as any)) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions' },
+        { status: 403 }
+      )
+    }
+
+    const { searchParams } = new URL(request.url)
+    const status = searchParams.get('status')
+    const groupId = searchParams.get('groupId')
+    const overdue = searchParams.get('overdue') === 'true'
+    const search = searchParams.get('search') || ''
+
+    const where: any = {}
+
+    // Target only non-cancelled payments by default
+    where.status = { not: PaymentStatus.CANCELLED }
+
+    if (status && status !== 'all') {
+      where.status = status
+    }
+
+    if (groupId && groupId !== 'all') {
+      where.student = { groupId }
+    }
+
+    if (search) {
+      where.student = {
+        ...where.student,
+        OR: [
+          { firstName: { contains: search, mode: 'insensitive' } },
+          { lastName: { contains: search, mode: 'insensitive' } }
+        ]
+      }
+    }
+
+    if (overdue) {
+      where.AND = [
+        { status: { in: [PaymentStatus.PENDING, PaymentStatus.PARTIAL] } },
+        { dueDate: { lt: new Date() } }
+      ]
+    }
+
+    const result = await prisma.payment.updateMany({
+      where,
+      data: {
+        status: PaymentStatus.CANCELLED,
+        notes: `CANCELLED (bulk) by ${user.name}`
+      }
+    })
+
+    return NextResponse.json({
+      message: 'Payments cancelled successfully',
+      count: result.count
+    })
+  } catch (error) {
+    console.error('Failed to bulk cancel payments:', error)
+    return NextResponse.json(
+      { error: 'Failed to bulk cancel payments' },
+      { status: 500 }
+    )
+  }
+}

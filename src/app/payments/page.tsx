@@ -410,6 +410,43 @@ export default function PaymentsPage() {
     }
   }
 
+  const handleDeleteAll = async () => {
+    if (!canManagePayments) return
+    if (!confirm('Listelenen tüm ödemeleri iptal etmek istediğinize emin misiniz?')) return
+
+    try {
+      const params = new URLSearchParams({
+        status: statusFilter,
+        groupId: groupFilter,
+        overdue: overdueFilter.toString(),
+        search: searchTerm
+      })
+      const response = await fetch(`/api/payments?${params.toString()}`, { method: 'DELETE' })
+
+      if (response.ok) {
+        const result = await response.json()
+        await fetchPayments()
+        toast({
+          title: '✅ Silindi!',
+          description: `Toplam ${result.count} ödeme iptal edildi`
+        })
+      } else {
+        const error = await response.json()
+        toast({
+          variant: 'destructive',
+          title: '❌ Hata!',
+          description: error.error || 'Toplu silme başarısız'
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: '❌ Hata!',
+        description: 'Toplu silme sırasında hata oluştu'
+      })
+    }
+  }
+
   const togglePaymentSelection = (paymentId: string) => {
     setSelectedPayments(prev => 
       prev.includes(paymentId)
@@ -568,6 +605,14 @@ export default function PaymentsPage() {
                 >
                   <Users className="h-4 w-4 mr-2" />
                   Toplu İşlemler
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleDeleteAll}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Tümünü Sil
                 </Button>
                 <Button 
                   className="bg-blue-600 hover:bg-blue-700"
