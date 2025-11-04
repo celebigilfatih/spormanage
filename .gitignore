@@ -73,3 +73,19 @@ docker-compose.override.yml
 
 # Prisma
 prisma/migrations/*/migration.sql.bak
+
+# Secrets and keys
+*.key
+*.pem
+*.crt
+
+# Environment and runtime
+.npmrc
+
+# Local database dumps (keep init.sql tracked)
+aidat_takip.sql
+*.dump
+
+# Deployment and diagnostics scripts
+deploy-*.sh
+diagnose-*.sh
