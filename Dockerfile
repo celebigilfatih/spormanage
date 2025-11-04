@@ -20,12 +20,17 @@ WORKDIR /app
 ENV NODE_ENV=production
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
-# Copy standalone output
-COPY --from=builder /app/public ./public
+# Copy standalone output (conditional copy for public directory)
+RUN mkdir -p ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
+# Conditionally copy public directory if it exists and is not empty
+RUN if [ -d "/app/public" ] && [ "$(ls -A /app/public)" ]; then \
+      cp -r /app/public/* ./public/; \
+    fi
 
 RUN chown -R nextjs:nodejs /app
 
