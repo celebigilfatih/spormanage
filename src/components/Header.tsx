@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import InAppNotifications from '@/components/InAppNotifications'
 import { UserRole } from '@/types'
 
-export default function Header() {
+export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   const { user, logout } = useAuth()
   const router = useRouter()
 
@@ -37,14 +37,17 @@ export default function Header() {
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Page Title - can be customized per page */}
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900">Hoş Geldiniz</h2>
+          <div className="flex items-center">
+            <button className="md:hidden mr-2 sm:mr-3 p-2 rounded-md border border-gray-200 hover:bg-gray-50" aria-label="Menüyü aç" onClick={onMenuClick}>
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+            </button>
+            <h2 className="text-base sm:text-lg md:text-xl font-semibold text-gray-900">Hoş Geldiniz</h2>
           </div>
 
           {/* User Menu */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4">
             <InAppNotifications />
-            <div className="hidden sm:flex items-center space-x-3">
+            <div className="hidden sm:flex items-center space-x-2 sm:space-x-3">
               <div className="text-right">
                 <p className="text-sm font-medium text-gray-900">{user.name}</p>
                 <p className="text-xs text-gray-500">{getRoleDisplayName(user.role as UserRole)}</p>

@@ -81,23 +81,37 @@ export function PaymentForm({
       if (selectedFeeType) {
         setValue('amount', selectedFeeType.amount.toString())
         
-        // Set default installment count based on period
+        // Auto-calculate start date based on period
+        const today = new Date()
+        let calculatedStartDate = new Date(today)
+
         switch (selectedFeeType.period) {
           case 'MONTHLY':
+            // Start from next month, first day
+            calculatedStartDate = new Date(today.getFullYear(), today.getMonth() + 1, 1)
             setValue('installmentCount', '12') // 12 months
             break
           case 'QUARTERLY':
+            // Start from next quarter
+            calculatedStartDate.setMonth(today.getMonth() + 3)
             setValue('installmentCount', '4') // 4 quarters
             break
           case 'YEARLY':
+            // Start from next year
+            calculatedStartDate.setFullYear(today.getFullYear() + 1)
             setValue('installmentCount', '1') // 1 year
             break
           case 'ONE_TIME':
+            // For one-time fees, set to end of current month
+            calculatedStartDate = new Date(today.getFullYear(), today.getMonth() + 1, 0)
             setValue('installmentCount', '1') // Single payment
             break
           default:
             setValue('installmentCount', '1')
         }
+
+        // Set the calculated start date
+        setValue('startDate', calculatedStartDate.toISOString().split('T')[0])
       }
     }
   }, [feeTypeId, feeTypes, initialData, setValue])
@@ -239,11 +253,11 @@ export function PaymentForm({
             <p className="text-sm text-red-600 mt-1">{errors.startDate.message}</p>
           )}
           {feeTypeId && (
-            <p className="text-sm text-muted-foreground mt-1">
-              {feeTypes.find(ft => ft.id === feeTypeId)?.period === 'MONTHLY' && 'Her ay bir vade oluşturulacak'}
-              {feeTypes.find(ft => ft.id === feeTypeId)?.period === 'QUARTERLY' && 'Her 3 ayda bir vade oluşturulacak'}
-              {feeTypes.find(ft => ft.id === feeTypeId)?.period === 'YEARLY' && 'Her yıl bir vade oluşturulacak'}
-              {feeTypes.find(ft => ft.id === feeTypeId)?.period === 'ONE_TIME' && 'Tek seferlik ödeme oluşturulacak'}
+            <p className="text-sm text-blue-600 mt-1">
+              ✓ {feeTypes.find(ft => ft.id === feeTypeId)?.period === 'MONTHLY' && 'Her ay bir vade oluşturulacak (Otomatik: Gelecek ayın 1. günü)'}
+              {feeTypes.find(ft => ft.id === feeTypeId)?.period === 'QUARTERLY' && 'Her 3 ayda bir vade oluşturulacak (Otomatik: 3 ay sonra)'}
+              {feeTypes.find(ft => ft.id === feeTypeId)?.period === 'YEARLY' && 'Her yıl bir vade oluşturulacak (Otomatik: Gelecek yıl)'}
+              {feeTypes.find(ft => ft.id === feeTypeId)?.period === 'ONE_TIME' && 'Tek seferlik ödeme oluşturulacak (Otomatik: Ay sonu)'}
             </p>
           )}
         </div>

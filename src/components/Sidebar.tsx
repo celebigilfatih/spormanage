@@ -16,11 +16,12 @@ import {
   UserCheck,
   ChevronLeft,
   ChevronRight,
-  Shield
+  Shield,
+  X
 } from 'lucide-react'
 import { useState } from 'react'
 
-export default function Sidebar() {
+export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?: boolean; onMobileClose?: () => void }) {
   const router = useRouter()
   const pathname = usePathname()
   const { user } = useAuth()
@@ -44,10 +45,17 @@ export default function Sidebar() {
   const isActive = (route: string) => pathname === route
 
   return (
-    <aside className={`bg-white border-r border-gray-200 h-screen sticky top-0 transition-all duration-300 ${
-      collapsed ? 'w-20' : 'w-64'
-    }`}>
-      <div className="flex flex-col h-full">
+    <> 
+      {/* Backdrop */}
+      <div className={`${mobileOpen ? 'fixed inset-0 z-40 bg-black/30 md:hidden' : 'hidden'}`} onClick={onMobileClose} />
+
+      {/* Sidebar Panel */}
+      <aside
+        className={`bg-white border-r border-gray-200 transition-all duration-300
+        ${collapsed ? 'md:w-20' : 'md:w-64'}
+        fixed inset-y-0 left-0 z-50 h-full w-64 transform md:transform-none
+        ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} md:sticky md:top-0 md:h-screen md:block`}
+      >      <div className="flex flex-col h-full">
         {/* Logo */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           {!collapsed && (
@@ -74,6 +82,10 @@ export default function Sidebar() {
               <Trophy className="w-6 h-6 text-white" />
             </div>
           )}
+          {/* Mobile close */}
+          <button onClick={onMobileClose} className="md:hidden ml-2 p-2 rounded-md border border-gray-200 hover:bg-gray-50" aria-label="Menüyü kapat">
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Navigation */}
@@ -122,5 +134,6 @@ export default function Sidebar() {
         </div>
       </div>
     </aside>
+    </>
   )
 }

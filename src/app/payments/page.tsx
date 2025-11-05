@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import AppLayout from '@/components/AppLayout'
 import { PaymentForm } from '@/components/forms/PaymentForm'
+import { EditPaymentForm } from '@/components/forms/EditPaymentForm'
 import { RecordPaymentForm } from '@/components/forms/RecordPaymentForm'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -295,6 +296,9 @@ export default function PaymentsPage() {
   const handleEditPayment = async (data: any) => {
     if (!selectedPayment) return
     
+    console.log('[Frontend] Edit payment data:', data)
+    console.log('[Frontend] Selected payment ID:', selectedPayment.id)
+    
     setIsSubmitting(true)
     try {
       const response = await fetch(`/api/payments/${selectedPayment.id}`, {
@@ -303,7 +307,11 @@ export default function PaymentsPage() {
         body: JSON.stringify(data)
       })
 
+      console.log('[Frontend] Response status:', response.status)
+      
       if (response.ok) {
+        const result = await response.json()
+        console.log('[Frontend] Updated payment:', result)
         setShowEditForm(false)
         setSelectedPayment(null)
         fetchPayments()
@@ -313,6 +321,7 @@ export default function PaymentsPage() {
         })
       } else {
         const error = await response.json()
+        console.error('[Frontend] Error response:', error)
         toast({
           variant: "destructive",
           title: "❌ Hata!",
@@ -320,6 +329,7 @@ export default function PaymentsPage() {
         })
       }
     } catch (error) {
+      console.error('[Frontend] Catch error:', error)
       toast({
         variant: "destructive",
         title: "❌ Hata!",
@@ -529,15 +539,14 @@ export default function PaymentsPage() {
             <X className="h-4 w-4 mr-2" />
             İptal
           </Button>
-          <PaymentForm
+          <EditPaymentForm
+            payment={selectedPayment}
             onSubmit={handleEditPayment}
             onCancel={() => {
               setShowEditForm(false)
               setSelectedPayment(null)
             }}
             isLoading={isSubmitting}
-            initialData={selectedPayment}
-            mode="edit"
           />
         </div>
       </AppLayout>

@@ -68,6 +68,35 @@ export default function BulkPaymentsPage() {
     }
   }, [selectedGroup])
 
+  // Auto-calculate due date when fee type is selected
+  useEffect(() => {
+    if (selectedFeeType) {
+      const feeType = feeTypes.find(ft => ft.id === selectedFeeType)
+      if (feeType) {
+        const today = new Date()
+        let calculatedDueDate = new Date(today)
+
+        switch (feeType.period) {
+          case 'MONTHLY':
+            calculatedDueDate.setMonth(today.getMonth() + 1)
+            break
+          case 'QUARTERLY':
+            calculatedDueDate.setMonth(today.getMonth() + 3)
+            break
+          case 'YEARLY':
+            calculatedDueDate.setFullYear(today.getFullYear() + 1)
+            break
+          case 'ONE_TIME':
+            // For one-time fees, set to end of current month
+            calculatedDueDate = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+            break
+        }
+
+        setDueDate(calculatedDueDate.toISOString().split('T')[0])
+      }
+    }
+  }, [selectedFeeType, feeTypes])
+
   const fetchGroups = async () => {
     try {
       const response = await fetch('/api/groups')
@@ -380,6 +409,13 @@ export default function BulkPaymentsPage() {
                           value={dueDate}
                           onChange={(e) => setDueDate(e.target.value)}
                         />
+                        {selectedFeeType && dueDate && (
+                          <p className="text-xs text-blue-600 mt-1">
+                            ✓ Otomatik olarak {feeTypes.find(ft => ft.id === selectedFeeType)?.period === 'MONTHLY' ? 'aylık' :
+                              feeTypes.find(ft => ft.id === selectedFeeType)?.period === 'QUARTERLY' ? 'çeyrek yıllık' :
+                              feeTypes.find(ft => ft.id === selectedFeeType)?.period === 'YEARLY' ? 'yıllık' : 'tek seferlik'} periyoda göre ayarlandı
+                          </p>
+                        )}
                       </div>
 
                       <Button

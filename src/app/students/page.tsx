@@ -320,18 +320,18 @@ export default function StudentsPage() {
     <AppLayout>
       {/* Page Header */}
       <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-4 sm:py-6 gap-3 sm:gap-0">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Öğrenciler</h1>
-              <p className="text-gray-600">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Öğrenciler</h1>
+              <p className="text-sm sm:text-base text-gray-600">
                 Öğrenci kayıtlarını ve bilgilerini yönetin
               </p>
             </div>
             {canManageStudents && (
               <Button
                 onClick={() => setShowRegistrationForm(true)}
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Öğrenci Ekle
@@ -341,10 +341,10 @@ export default function StudentsPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
         {/* Filters */}
-        <div className="bg-white p-6 rounded-lg shadow mb-6">
-          <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow mb-4 sm:mb-6">
+          <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Arama
@@ -395,11 +395,11 @@ export default function StudentsPage() {
               </Select>
             </div>
 
-            <div className="flex items-end space-x-2">
-              <Button type="submit" className="flex-1">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2">
+              <Button type="submit" className="flex-1 h-10 sm:h-auto">
                 Ara
               </Button>
-              <Button type="button" variant="outline" onClick={resetFilters}>
+              <Button type="button" variant="outline" onClick={resetFilters} className="h-10 sm:h-auto">
                 Sıfırla
               </Button>
             </div>
@@ -407,8 +407,8 @@ export default function StudentsPage() {
         </div>
 
         {/* Results Summary */}
-        <div className="bg-white p-4 rounded-lg shadow mb-6">
-          <div className="flex items-center justify-between">
+        <div className="bg-white p-3 sm:p-4 rounded-lg shadow mb-4 sm:mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
             <div className="flex items-center space-x-4">
               <div className="flex items-center">
                 <Users className="h-5 w-5 text-blue-600 mr-2" />
@@ -443,7 +443,7 @@ export default function StudentsPage() {
               {canManageStudents && (
                 <Button
                   onClick={() => setShowRegistrationForm(true)}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   İlk Öğrenciyi Ekle
@@ -455,25 +455,25 @@ export default function StudentsPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th scope="col" className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Öğrenci
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th scope="col" className="hidden sm:table-cell px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Grup
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th scope="col" className="hidden md:table-cell px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       İletişim
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th scope="col" className="hidden lg:table-cell px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Veli
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th scope="col" className="hidden sm:table-cell px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Durum
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th scope="col" className="hidden xl:table-cell px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       İstatistikler
                     </th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th scope="col" className="px-3 sm:px-6 py-2 sm:py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       İşlemler
                     </th>
                   </tr>

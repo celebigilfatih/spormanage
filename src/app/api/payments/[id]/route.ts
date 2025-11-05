@@ -147,7 +147,9 @@ export async function PUT(
 
     const { id: paymentId } = await params
     const data = await request.json()
-    const { amount, dueDate, notes } = data
+    const { amount, dueDate, startDate, notes } = data
+
+    console.log('[Payment PUT] Received data:', { amount, dueDate, startDate, notes })
 
     const payment = await prisma.payment.findUnique({
       where: { id: paymentId }
@@ -160,15 +162,21 @@ export async function PUT(
       )
     }
 
+    console.log('[Payment PUT] Current payment:', { amount: payment.amount, dueDate: payment.dueDate })
+
     // Allow editing all payments (removed restriction)
+
+    const updateData = {
+      amount: amount ? parseFloat(amount) : payment.amount,
+      dueDate: dueDate ? new Date(dueDate) : (startDate ? new Date(startDate) : payment.dueDate),
+      notes: notes !== undefined ? notes : payment.notes
+    }
+
+    console.log('[Payment PUT] Update data:', updateData)
 
     const updatedPayment = await prisma.payment.update({
       where: { id: paymentId },
-      data: {
-        amount: amount ? parseFloat(amount) : payment.amount,
-        dueDate: dueDate ? new Date(dueDate) : payment.dueDate,
-        notes: notes !== undefined ? notes : payment.notes
-      },
+      data: updateData,
       include: {
         student: {
           include: { 

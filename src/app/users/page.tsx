@@ -210,11 +210,11 @@ export default function UsersPage() {
     <AppLayout>
       {/* Page Header */}
       <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-4 sm:py-6 gap-3 sm:gap-0">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Kullanıcı Yönetimi</h1>
-              <p className="text-gray-600">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Kullanıcı Yönetimi</h1>
+              <p className="text-sm sm:text-base text-gray-600">
                 Sistem kullanıcılarını ve yetkilerini yönetin
               </p>
             </div>
@@ -224,7 +224,7 @@ export default function UsersPage() {
                 resetForm()
                 setShowForm(true)
               }}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
             >
               <Plus className="h-4 w-4 mr-2" />
               Kullanıcı Ekle
@@ -233,10 +233,10 @@ export default function UsersPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
         {/* Filters */}
-        <div className="bg-white p-6 rounded-lg shadow mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow mb-4 sm:mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Ara
