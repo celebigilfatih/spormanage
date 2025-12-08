@@ -19,7 +19,8 @@ import {
   DollarSign,
   Plus,
   Edit2,
-  Trash2
+  Trash2,
+  Building2
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -54,6 +55,19 @@ interface FeeType {
   } | null;
 }
 
+interface Branch {
+  id: string;
+  name: string;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  managerName?: string | null;
+  isActive: boolean;
+  _count?: {
+    students: number;
+  };
+}
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<SystemSettings>({
     schoolName: 'Futbol Okulu',
@@ -74,8 +88,15 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [feeTypes, setFeeTypes] = useState<FeeType[]>([]);
   const [editingFeeType, setEditingFeeType] = useState<FeeType | null>(null);
-  const [newFeeType, setNewFeeType] = useState({ name: '', amount: '', period: 'MONTHLY' });
+  const [newFeeType, setNewFeeType] = useState({ name: '', period: 'MONTHLY' });
   const [showFeeTypeForm, setShowFeeTypeForm] = useState(false);
+  
+  // Branch state
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
+  const [newBranch, setNewBranch] = useState({ name: '', address: '', phone: '', email: '', managerName: '' });
+  const [showBranchForm, setShowBranchForm] = useState(false);
+  
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -90,6 +111,7 @@ export default function SettingsPage() {
     }
     loadSettings();
     loadFeeTypes();
+    loadBranches();
   }, [isAdmin]);
 
   const loadSettings = async () => {
@@ -119,11 +141,24 @@ export default function SettingsPage() {
     }
   };
 
+  const loadBranches = async () => {
+    try {
+      const response = await fetch('/api/branches');
+      if (response.ok) {
+        const data = await response.json();
+        setBranches(data);
+      }
+    } catch (error) {
+      console.error('Failed to load branches:', error);
+    }
+  };
+
   const handleSaveFeeType = async () => {
     try {
       const feeTypeData = {
-        ...newFeeType,
-        amount: parseFloat(newFeeType.amount)
+        name: newFeeType.name,
+        period: newFeeType.period,
+        amount: 0 // Default amount, will be set when creating payment
       };
 
       const url = editingFeeType ? `/api/fee-types/${editingFeeType.id}` : '/api/fee-types';
@@ -140,7 +175,7 @@ export default function SettingsPage() {
           title: "Başarılı",
           description: editingFeeType ? "Ücret tipi güncellendi" : "Ücret tipi oluşturuldu",
         });
-        setNewFeeType({ name: '', amount: '', period: 'MONTHLY' });
+        setNewFeeType({ name: '', period: 'MONTHLY' });
         setEditingFeeType(null);
         setShowFeeTypeForm(false);
         loadFeeTypes();
@@ -160,7 +195,6 @@ export default function SettingsPage() {
     setEditingFeeType(feeType);
     setNewFeeType({
       name: feeType.name,
-      amount: feeType.amount.toString(),
       period: feeType.period
     });
     setShowFeeTypeForm(true);
@@ -195,7 +229,94 @@ export default function SettingsPage() {
   const handleCancelFeeType = () => {
     setShowFeeTypeForm(false);
     setEditingFeeType(null);
-    setNewFeeType({ name: '', amount: '', period: 'MONTHLY' });
+    setNewFeeType({ name: '', period: 'MONTHLY' });
+  };
+
+  // Branch handlers
+  const handleSaveBranch = async () => {
+    try {
+      const branchData = {
+        name: newBranch.name,
+        address: newBranch.address || null,
+        phone: newBranch.phone || null,
+        email: newBranch.email || null,
+        managerName: newBranch.managerName || null
+      };
+
+      const url = editingBranch ? `/api/branches/${editingBranch.id}` : '/api/branches';
+      const method = editingBranch ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(branchData),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Başarılı",
+          description: editingBranch ? "Şube güncellendi" : "Şube oluşturuldu",
+        });
+        setNewBranch({ name: '', address: '', phone: '', email: '', managerName: '' });
+        setEditingBranch(null);
+        setShowBranchForm(false);
+        loadBranches();
+      } else {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to save branch');
+      }
+    } catch (error) {
+      toast({
+        title: "Hata",
+        description: error instanceof Error ? error.message : "Şube kaydedilemedi",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditBranch = (branch: Branch) => {
+    setEditingBranch(branch);
+    setNewBranch({
+      name: branch.name,
+      address: branch.address || '',
+      phone: branch.phone || '',
+      email: branch.email || '',
+      managerName: branch.managerName || ''
+    });
+    setShowBranchForm(true);
+  };
+
+  const handleDeleteBranch = async (id: string) => {
+    if (!confirm('Bu şubeyi silmek istediğinizden emin misiniz?')) return;
+
+    try {
+      const response = await fetch(`/api/branches/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Başarılı",
+          description: "Şube silindi",
+        });
+        loadBranches();
+      } else {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete branch');
+      }
+    } catch (error) {
+      toast({
+        title: "Hata",
+        description: error instanceof Error ? error.message : "Şube silinemedi",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancelBranch = () => {
+    setShowBranchForm(false);
+    setEditingBranch(null);
+    setNewBranch({ name: '', address: '', phone: '', email: '', managerName: '' });
   };
 
   const handleSave = async () => {
@@ -268,10 +389,61 @@ export default function SettingsPage() {
     }
   };
 
+  const handleManualBackup = async (format: 'auto' | 'sql' | 'json' = 'auto') => {
+    try {
+      console.log('[Settings] Starting manual backup, format:', format);
+      const url = format === 'auto' ? '/api/settings/backup' : `/api/settings/backup?format=${format}`;
+      const res = await fetch(url);
+      console.log('[Settings] Backup response status:', res.status, res.statusText);
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('[Settings] Backup failed:', errorData);
+        throw new Error(errorData.error || 'Backup failed');
+      }
+      
+      const blob = await res.blob();
+      console.log('[Settings] Blob received, type:', blob.type, 'size:', blob.size);
+      
+      const url2 = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      
+      // Determine file extension based on content type
+      let ext = '.json';
+      if (blob.type === 'application/sql' || blob.type === 'text/plain') {
+        ext = '.sql';
+      } else if (blob.type === 'application/octet-stream') {
+        ext = '.db';
+      }
+      
+      const filename = `aidat_takip_backup_${new Date().toISOString().replace(/[:.]/g, '-')}${ext}`;
+      console.log('[Settings] Downloading as:', filename);
+      
+      a.href = url2;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url2);
+      
+      toast({
+        title: "Yedek oluşturuldu",
+        description: `Yedek dosyası indirildi (${ext})`,
+      });
+    } catch (error) {
+      console.error('[Settings] Backup error:', error);
+      toast({
+        title: "Hata",
+        description: error instanceof Error ? error.message : "Yedek oluşturulamadı",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (!isAdmin) {
     return (
       <AppLayout>
-        <div className="container mx-auto py-6">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
           <Card>
             <CardContent className="text-center py-8">
               <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -286,7 +458,7 @@ export default function SettingsPage() {
 
   return (
     <AppLayout>
-      <div className="container mx-auto py-6 space-y-6">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Page Header */}
         <div className="flex justify-between items-center">
         <div>
@@ -307,7 +479,7 @@ export default function SettingsPage() {
         </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* School Information */}
         <Card>
           <CardHeader>
@@ -474,8 +646,8 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Fee Types Management */}
-        <Card className="lg:col-span-2">
+        {/* Fee Types Management - Single Row */}
+        <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
               <div>
@@ -484,7 +656,7 @@ export default function SettingsPage() {
                   Ücret Tipleri
                 </CardTitle>
                 <CardDescription>
-                  Özel ücret tiplerinizi ve fiyatlarınızı tanımlayın
+                  Ücret tiplerinizi tanımlayın (Fiyatlar ödeme eklerken belirlenir)
                 </CardDescription>
               </div>
               <Button
@@ -502,7 +674,7 @@ export default function SettingsPage() {
                 <h4 className="font-medium">
                   {editingFeeType ? 'Ücret Tipini Düzenle' : 'Yeni Ücret Tipi Ekle'}
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="feeTypeName">Ücret Adı</Label>
                     <Input
@@ -510,18 +682,6 @@ export default function SettingsPage() {
                       placeholder="Örn: Aylık Aidat"
                       value={newFeeType.name}
                       onChange={(e) => setNewFeeType(prev => ({ ...prev, name: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="feeTypeAmount">Tutar ({settings.currency})</Label>
-                    <Input
-                      id="feeTypeAmount"
-                      type="number"
-                      placeholder="0.00"
-                      step="0.01"
-                      min="0"
-                      value={newFeeType.amount}
-                      onChange={(e) => setNewFeeType(prev => ({ ...prev, amount: e.target.value }))}
                     />
                   </div>
                   <div>
@@ -549,7 +709,7 @@ export default function SettingsPage() {
                   </Button>
                   <Button
                     onClick={handleSaveFeeType}
-                    disabled={!newFeeType.name || !newFeeType.amount}
+                    disabled={!newFeeType.name}
                   >
                     <Save className="h-4 w-4 mr-2" />
                     {editingFeeType ? 'Güncelle' : 'Kaydet'}
@@ -574,9 +734,6 @@ export default function SettingsPage() {
                     <div className="flex-1">
                       <h4 className="font-medium">{feeType.name}</h4>
                       <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                        <span className="font-semibold text-primary">
-                          {feeType.amount.toLocaleString('tr-TR')} {settings.currency}
-                        </span>
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800">
                           {feeType.period === 'MONTHLY' && 'Aylık'}
                           {feeType.period === 'QUARTERLY' && '3 Aylık'}
@@ -601,6 +758,157 @@ export default function SettingsPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDeleteFeeType(feeType.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Branch Management */}
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  Şube Yönetimi
+                </CardTitle>
+                <CardDescription>
+                  Okul şubelerinizi tanımlayın ve yönetin
+                </CardDescription>
+              </div>
+              <Button
+                onClick={() => setShowBranchForm(!showBranchForm)}
+                size="sm"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Yeni Şube
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {showBranchForm && (
+              <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+                <h4 className="font-medium">
+                  {editingBranch ? 'Şubeyi Düzenle' : 'Yeni Şube Ekle'}
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="branchName">Şube Adı *</Label>
+                    <Input
+                      id="branchName"
+                      placeholder="Örn: Merkez Şube"
+                      value={newBranch.name}
+                      onChange={(e) => setNewBranch(prev => ({ ...prev, name: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="branchManagerName">Şube Müdürü</Label>
+                    <Input
+                      id="branchManagerName"
+                      placeholder="Müdür adı"
+                      value={newBranch.managerName}
+                      onChange={(e) => setNewBranch(prev => ({ ...prev, managerName: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="branchPhone">Telefon</Label>
+                    <Input
+                      id="branchPhone"
+                      placeholder="+90 555 123 4567"
+                      value={newBranch.phone}
+                      onChange={(e) => setNewBranch(prev => ({ ...prev, phone: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="branchEmail">E-posta</Label>
+                    <Input
+                      id="branchEmail"
+                      type="email"
+                      placeholder="sube@futbolokulu.com"
+                      value={newBranch.email}
+                      onChange={(e) => setNewBranch(prev => ({ ...prev, email: e.target.value }))}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label htmlFor="branchAddress">Adres</Label>
+                    <Input
+                      id="branchAddress"
+                      placeholder="Şube adresi"
+                      value={newBranch.address}
+                      onChange={(e) => setNewBranch(prev => ({ ...prev, address: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button variant="outline" onClick={handleCancelBranch}>
+                    İptal
+                  </Button>
+                  <Button
+                    onClick={handleSaveBranch}
+                    disabled={!newBranch.name}
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    {editingBranch ? 'Güncelle' : 'Kaydet'}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {branches.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Building2 className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>Henüz şube tanımlanmamış</p>
+                <p className="text-sm">Yeni şube eklemek için yukarıdaki butonu kullanın</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {branches.map((branch) => (
+                  <div
+                    key={branch.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex-1">
+                      <h4 className="font-medium">{branch.name}</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-muted-foreground mt-2">
+                        {branch.managerName && (
+                          <div>Müdür: {branch.managerName}</div>
+                        )}
+                        {branch.phone && (
+                          <div>Tel: {branch.phone}</div>
+                        )}
+                        {branch.email && (
+                          <div>E-posta: {branch.email}</div>
+                        )}
+                        {branch.address && (
+                          <div className="md:col-span-2">Adres: {branch.address}</div>
+                        )}
+                        {branch._count && (
+                          <div className="md:col-span-2">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800">
+                              {branch._count.students} Öğrenci
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditBranch(branch)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteBranch(branch.id)}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -649,41 +957,45 @@ export default function SettingsPage() {
               </div>
             )}
             
-            <div className="pt-4">
-              <Button variant="outline" className="w-full">
+            <div className="pt-4 space-y-2">
+              <Button variant="outline" className="w-full" onClick={() => handleManualBackup('sql')}>
                 <Database className="h-4 w-4 mr-2" />
-                Manuel Yedekleme Oluştur
+                SQL Dump İndir (.sql)
+              </Button>
+              <Button variant="outline" className="w-full" onClick={() => handleManualBackup('json')}>
+                <Database className="h-4 w-4 mr-2" />
+                JSON Export İndir (.json)
               </Button>
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      {/* System Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Sistem Bilgileri</CardTitle>
-          <CardDescription>
-            Sistem durumu ve sürüm bilgileri
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center p-4 bg-muted rounded-lg">
-              <h4 className="font-medium">Sistem Sürümü</h4>
-              <p className="text-2xl font-bold text-primary">v1.0.0</p>
+        {/* System Information - Single Row */}
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle>Sistem Bilgileri</CardTitle>
+            <CardDescription>
+              Sistem durumu ve sürüm bilgileri
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="text-center p-4 bg-muted rounded-lg">
+                <h4 className="font-medium">Sistem Sürümü</h4>
+                <p className="text-2xl font-bold text-primary">v1.0.0</p>
+              </div>
+              <div className="text-center p-4 bg-muted rounded-lg">
+                <h4 className="font-medium">Veritabanı</h4>
+                <p className="text-2xl font-bold text-green-600">Bağlı</p>
+              </div>
+              <div className="text-center p-4 bg-muted rounded-lg">
+                <h4 className="font-medium">Son Güncelleme</h4>
+                <p className="text-sm text-muted-foreground">25.09.2025</p>
+              </div>
             </div>
-            <div className="text-center p-4 bg-muted rounded-lg">
-              <h4 className="font-medium">Veritabanı</h4>
-              <p className="text-2xl font-bold text-green-600">Bağlı</p>
-            </div>
-            <div className="text-center p-4 bg-muted rounded-lg">
-              <h4 className="font-medium">Son Güncelleme</h4>
-              <p className="text-sm text-muted-foreground">25.09.2025</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
       </div>
     </AppLayout>
   );

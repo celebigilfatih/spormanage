@@ -20,13 +20,18 @@ let systemSettings = {
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    const user = await AuthService.verifyToken(token || '');
+    console.log('[Settings] GET request received');
+    const token = request.cookies.get('auth-token')?.value;
+    console.log('[Settings] Token found:', !!token);
+    const user = AuthService.verifyToken(token || '');
+    console.log('[Settings] User verified:', user?.email, user?.role);
     
     if (!user || user.role !== 'ADMIN') {
+      console.log('[Settings] Unauthorized - user:', user?.email, 'role:', user?.role);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    console.log('[Settings] Returning settings');
     return NextResponse.json(systemSettings);
   } catch (error) {
     console.error('Error fetching settings:', error);
@@ -39,8 +44,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    const user = await AuthService.verifyToken(token || '');
+    const token = request.cookies.get('auth-token')?.value;
+    const user = AuthService.verifyToken(token || '');
     
     if (!user || user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

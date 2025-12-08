@@ -15,7 +15,8 @@ import {
   Target,
   BookOpen,
   DollarSign,
-  Activity
+  Activity,
+  Building2
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -27,10 +28,14 @@ export default function Dashboard() {
     activeStudents: 0,
     loading: true
   })
+  const [branches, setBranches] = useState<any[]>([])
+  const [branchStats, setBranchStats] = useState<any[]>([])
+  const [loadingBranches, setLoadingBranches] = useState(true)
 
   useEffect(() => {
     if (user) {
       fetchStats()
+      fetchBranches()
     }
   }, [user])
 
@@ -48,6 +53,37 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Failed to fetch stats:', error)
       setStats(prev => ({ ...prev, loading: false }))
+    }
+  }
+
+  const fetchBranches = async () => {
+    try {
+      const response = await fetch('/api/branches')
+      if (response.ok) {
+        const data = await response.json()
+        setBranches(data)
+        
+        // Her şube için öğrenci sayısını al
+        const branchStatsPromises = data.map(async (branch: any) => {
+          const studentsRes = await fetch(`/api/students?branchId=${branch.id}&status=active&limit=1`)
+          if (studentsRes.ok) {
+            const studentsData = await studentsRes.json()
+            return {
+              id: branch.id,
+              name: branch.name,
+              studentCount: studentsData.pagination.total
+            }
+          }
+          return { id: branch.id, name: branch.name, studentCount: 0 }
+        })
+        
+        const branchStatsData = await Promise.all(branchStatsPromises)
+        setBranchStats(branchStatsData)
+      }
+    } catch (error) {
+      console.error('Failed to fetch branches:', error)
+    } finally {
+      setLoadingBranches(false)
     }
   }
 
@@ -115,7 +151,7 @@ export default function Dashboard() {
   return (
     <AppLayout>
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
+      <div className="w-full px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
           <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
@@ -217,6 +253,48 @@ export default function Dashboard() {
             })}
           </div>
         </div>
+
+        {/* Branch Statistics */}
+        {branches.length > 0 && (
+          <div className="mb-6 sm:mb-8">
+            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center gap-2">
+              <Building2 className="w-6 h-6 text-blue-500" />
+              Şubelere Göre İstatistikler
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+              {loadingBranches ? (
+                <Card className="border-0 shadow-lg">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <div className="w-32 h-4 bg-gray-200 animate-pulse rounded"></div>
+                    <Building2 className="h-5 w-5 text-gray-400" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="w-16 h-8 bg-gray-200 animate-pulse rounded"></div>
+                  </CardContent>
+                </Card>
+              ) : (
+                branchStats.map((branch) => (
+                  <Card key={branch.id} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium text-gray-600">
+                        {branch.name}
+                      </CardTitle>
+                      <Building2 className="h-5 w-5 text-blue-500" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-gray-900">
+                        {branch.studentCount}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Öğrenci sayısı
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Recent Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">

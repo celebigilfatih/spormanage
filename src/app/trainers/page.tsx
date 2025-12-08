@@ -130,7 +130,7 @@ export default function TrainersPage() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="container mx-auto py-6">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-center h-64">
             <div className="text-lg">Yükleniyor...</div>
           </div>
@@ -141,7 +141,7 @@ export default function TrainersPage() {
 
   return (
     <AppLayout>
-      <div className="container mx-auto py-6 space-y-6">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Page Header */}
         <div className="flex justify-between items-center">
           <div>

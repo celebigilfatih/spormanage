@@ -23,10 +23,12 @@ export async function GET(request: NextRequest) {
     const studentId = searchParams.get('studentId')
     const status = searchParams.get('status')
     const groupId = searchParams.get('groupId')
+    const branchId = searchParams.get('branchId')
     const overdue = searchParams.get('overdue') === 'true'
     const search = searchParams.get('search') || ''
     const sortField = searchParams.get('sortField') || 'dueDate'
     const sortDirection = searchParams.get('sortDirection') || 'asc'
+    const monthFilter = searchParams.get('month') || 'all' // current or all
 
     const skip = (page - 1) * limit
     const where: any = {}
@@ -48,6 +50,13 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    if (branchId && branchId !== 'all') {
+      where.student = {
+        ...where.student,
+        branchId: branchId
+      }
+    }
+
     // Search by student name
     if (search) {
       where.student = {
@@ -64,6 +73,23 @@ export async function GET(request: NextRequest) {
         { status: { in: [PaymentStatus.PENDING, PaymentStatus.PARTIAL] } },
         { dueDate: { lt: new Date() } }
       ]
+    }
+
+    // Month filter - show only current month payments
+    if (monthFilter === 'current') {
+      const now = new Date()
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
+      
+      if (!where.AND) {
+        where.AND = []
+      }
+      where.AND.push({
+        dueDate: {
+          gte: monthStart,
+          lte: monthEnd
+        }
+      })
     }
 
     // Determine sorting
@@ -89,6 +115,7 @@ export async function GET(request: NextRequest) {
           student: {
             include: {
               group: true,
+              branch: true,
               parents: {
                 where: { isPrimary: true },
                 take: 1
@@ -125,6 +152,40 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    // Calculate monthly stats (current month)
+    const now = new Date()
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
+
+    const monthlyPaidStats = await prisma.payment.aggregate({
+      where: {
+        ...where,
+        status: PaymentStatus.PAID,
+        paidDate: {
+          gte: monthStart,
+          lte: monthEnd
+        }
+      },
+      _sum: {
+        paidAmount: true
+      }
+    })
+
+    const monthlyPendingStats = await prisma.payment.aggregate({
+      where: {
+        ...where,
+        status: { in: [PaymentStatus.PENDING, PaymentStatus.PARTIAL] },
+        dueDate: {
+          gte: monthStart,
+          lte: monthEnd
+        }
+      },
+      _sum: {
+        amount: true,
+        paidAmount: true
+      }
+    })
+
     return NextResponse.json({
       payments,
       pagination: {
@@ -137,7 +198,9 @@ export async function GET(request: NextRequest) {
         totalAmount: summaryStats._sum.amount || 0,
         totalPaid: summaryStats._sum.paidAmount || 0,
         totalCount: summaryStats._count.id,
-        overdueCount: overduePayments
+        overdueCount: overduePayments,
+        monthlyPaid: monthlyPaidStats._sum.paidAmount || 0,
+        monthlyPending: (monthlyPendingStats._sum.amount || 0) - (monthlyPendingStats._sum.paidAmount || 0)
       }
     })
   } catch (error) {

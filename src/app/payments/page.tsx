@@ -7,6 +7,7 @@ import AppLayout from '@/components/AppLayout'
 import { PaymentForm } from '@/components/forms/PaymentForm'
 import { EditPaymentForm } from '@/components/forms/EditPaymentForm'
 import { RecordPaymentForm } from '@/components/forms/RecordPaymentForm'
+import { PaymentReceipt } from '@/components/PaymentReceipt'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -27,7 +28,8 @@ import {
   Trash2,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Printer
 } from 'lucide-react'
 import { Payment, Group, FeeType, PaymentStatus, PaymentMethod, UserRole } from '@/types'
 import { AuthService } from '@/lib/auth'
@@ -37,6 +39,8 @@ interface PaymentSummary {
   totalPaid: number
   totalCount: number
   overdueCount: number
+  monthlyPaid: number
+  monthlyPending: number
 }
 
 interface PaymentsResponse {
@@ -57,11 +61,14 @@ export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([])
   const [groups, setGroups] = useState<Group[]>([])
   const [feeTypes, setFeeTypes] = useState<FeeType[]>([])
+  const [branches, setBranches] = useState<any[]>([])
   const [summary, setSummary] = useState<PaymentSummary>({
     totalAmount: 0,
     totalPaid: 0,
     totalCount: 0,
-    overdueCount: 0
+    overdueCount: 0,
+    monthlyPaid: 0,
+    monthlyPending: 0
   })
   const [loading, setLoading] = useState(true)
   
@@ -69,7 +76,9 @@ export default function PaymentsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [groupFilter, setGroupFilter] = useState('all')
+  const [branchFilter, setBranchFilter] = useState('all')
   const [overdueFilter, setOverdueFilter] = useState(false)
+  const [monthFilter, setMonthFilter] = useState('current') // current, all
   
   // Sorting
   const [sortField, setSortField] = useState<'dueDate' | 'amount' | 'student'>('dueDate')
@@ -90,6 +99,15 @@ export default function PaymentsPage() {
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [groupByPlan, setGroupByPlan] = useState(true) // New state for grouping
+  
+  // Receipt state
+  const [showReceipt, setShowReceipt] = useState(false)
+  const [receiptData, setReceiptData] = useState<{
+    payment: Payment
+    paidAmount: number
+    paymentMethod: string
+    paidDate: string
+  } | null>(null)
 
   const canManagePayments = user && AuthService.canManagePayments(user.role as UserRole)
 
@@ -144,7 +162,8 @@ export default function PaymentsPage() {
     fetchPayments()
     fetchGroups()
     fetchFeeTypes()
-  }, [currentPage, statusFilter, groupFilter, overdueFilter, sortField, sortDirection])
+    fetchBranches()
+  }, [currentPage, statusFilter, groupFilter, branchFilter, overdueFilter, sortField, sortDirection, monthFilter])
 
   const fetchPayments = async () => {
     try {
@@ -154,10 +173,12 @@ export default function PaymentsPage() {
         limit: '20',
         status: statusFilter,
         groupId: groupFilter,
+        branchId: branchFilter,
         overdue: overdueFilter.toString(),
         search: searchTerm,
         sortField: sortField,
-        sortDirection: sortDirection
+        sortDirection: sortDirection,
+        month: monthFilter
       })
 
       const response = await fetch(`/api/payments?${params}`)
@@ -200,6 +221,18 @@ export default function PaymentsPage() {
       }
     } catch (error) {
       console.error('Failed to fetch fee types:', error)
+    }
+  }
+
+  const fetchBranches = async () => {
+    try {
+      const response = await fetch('/api/branches')
+      if (response.ok) {
+        const data = await response.json()
+        setBranches(data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch branches:', error)
     }
   }
 
@@ -355,13 +388,27 @@ export default function PaymentsPage() {
       })
 
       if (response.ok) {
+        const updatedPayment = await response.json()
+        
+        // Store receipt data
+        setReceiptData({
+          payment: updatedPayment,
+          paidAmount: parseFloat(data.paidAmount),
+          paymentMethod: data.paymentMethod,
+          paidDate: data.paidDate
+        })
+        
         setShowRecordForm(false)
         setSelectedPayment(null)
         fetchPayments()
+        
         toast({
           title: "✅ Tahsil Edildi!",
           description: "Ödeme başarıyla kaydedildi"
         })
+        
+        // Show receipt
+        setShowReceipt(true)
       } else {
         const error = await response.json()
         toast({
@@ -379,6 +426,17 @@ export default function PaymentsPage() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handlePrintReceipt = (payment: Payment) => {
+    // For paid payments, show receipt with full payment info
+    setReceiptData({
+      payment: payment,
+      paidAmount: payment.paidAmount || payment.amount,
+      paymentMethod: payment.paymentMethod || PaymentMethod.CASH,
+      paidDate: payment.paidDate ? payment.paidDate.toString() : new Date().toISOString().split('T')[0]
+    })
+    setShowReceipt(true)
   }
 
   const handleBulkCollection = async () => {
@@ -474,9 +532,15 @@ export default function PaymentsPage() {
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('tr-TR', {
-      style: 'currency',
-      currency: 'TRY'
-    }).format(amount)
+      style: 'decimal',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount) + ' ₺'
+  }
+
+  const getCurrentMonthName = () => {
+    const now = new Date()
+    return now.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })
   }
 
   const isOverdue = (payment: Payment) => {
@@ -504,7 +568,7 @@ export default function PaymentsPage() {
   if (showAddForm) {
     return (
       <AppLayout>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
           <Button
             variant="outline"
             onClick={() => setShowAddForm(false)}
@@ -527,7 +591,7 @@ export default function PaymentsPage() {
   if (showEditForm && selectedPayment) {
     return (
       <AppLayout>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
           <Button
             variant="outline"
             onClick={() => {
@@ -556,7 +620,7 @@ export default function PaymentsPage() {
   if (showRecordForm && selectedPayment) {
     return (
       <AppLayout>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
           <Button
             variant="outline"
             onClick={() => {
@@ -586,7 +650,7 @@ export default function PaymentsPage() {
     <AppLayout>
       {/* Page Header */}
       <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Ödemeler</h1>
@@ -636,7 +700,7 @@ export default function PaymentsPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
         {/* Sticky Summary Bar - Gecikmiş Ödemeler */}
         {summary.overdueCount > 0 && (
           <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white p-4 rounded-lg shadow-lg mb-6">
@@ -663,11 +727,16 @@ export default function PaymentsPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow">
             <div className="flex items-center">
-              <DollarSign className="h-8 w-8 text-green-600" />
+              <div className="h-8 w-8 text-green-600 flex items-center justify-center font-bold text-2xl">
+                ₺
+              </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Toplam Gelir</p>
                 <p className="text-2xl font-bold text-gray-900">
                   {formatCurrency(summary.totalPaid)}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {getCurrentMonthName()}: {formatCurrency(summary.monthlyPaid)}
                 </p>
               </div>
             </div>
@@ -680,6 +749,9 @@ export default function PaymentsPage() {
                 <p className="text-sm font-medium text-gray-600">Bekleyen</p>
                 <p className="text-2xl font-bold text-gray-900">
                   {formatCurrency(summary.totalAmount - summary.totalPaid)}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {getCurrentMonthName()}: {formatCurrency(summary.monthlyPending)}
                 </p>
               </div>
             </div>
@@ -711,8 +783,8 @@ export default function PaymentsPage() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white p-6 rounded-lg shadow mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-8 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Ara
@@ -765,8 +837,42 @@ export default function PaymentsPage() {
               </Select>
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Şube
+              </label>
+              <Select value={branchFilter} onValueChange={setBranchFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Tüm şubeler" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tüm şubeler</SelectItem>
+                  {branches.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Dönem
+              </label>
+              <Select value={monthFilter} onValueChange={setMonthFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Dönem seçin" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="current">Bu Ay</SelectItem>
+                  <SelectItem value="all">Tüm Zamanlar</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="flex items-end">
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 h-10 px-3 border border-gray-300 rounded-md w-full bg-white">
                 <input
                   type="checkbox"
                   id="overdue"
@@ -774,7 +880,7 @@ export default function PaymentsPage() {
                   onChange={(e) => setOverdueFilter(e.target.checked)}
                   className="rounded border-gray-300"
                 />
-                <label htmlFor="overdue" className="text-sm font-medium text-gray-700">
+                <label htmlFor="overdue" className="text-sm font-medium text-gray-700 whitespace-nowrap cursor-pointer">
                   Sadece gecikmişler
                 </label>
               </div>
@@ -786,12 +892,15 @@ export default function PaymentsPage() {
                   setSearchTerm('')
                   setStatusFilter('all')
                   setGroupFilter('all')
+                  setBranchFilter('all')
                   setOverdueFilter(false)
+                  setMonthFilter('current')
                   setCurrentPage(1)
                 }}
                 variant="outline"
                 className="w-full"
               >
+                <Filter className="h-4 w-4 mr-2" />
                 Filtreleri Sıfırla
               </Button>
             </div>
@@ -926,7 +1035,7 @@ export default function PaymentsPage() {
                     const anyOverdue = group.payments.some(p => isOverdue(p))
 
                     return (
-                      <>
+                      <React.Fragment key={group.plan || `ungrouped-${groupIndex}`}>
                         {isGrouped && (
                           <tr className="bg-blue-50 border-t-2 border-blue-200">
                             <td colSpan={showBulkActions && canManagePayments ? 10 : 9} className="px-6 py-3">
@@ -1061,6 +1170,17 @@ export default function PaymentsPage() {
                                       Ödeme Kaydet
                                     </Button>
                                   )}
+                                  {payment.status === PaymentStatus.PAID && (
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm"
+                                      onClick={() => handlePrintReceipt(payment)}
+                                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                      title="Makbuz Yazdır"
+                                    >
+                                      <Printer className="h-4 w-4" />
+                                    </Button>
+                                  )}
                                   {canManagePayments && (
                                     <>
                                       <Button 
@@ -1090,7 +1210,7 @@ export default function PaymentsPage() {
                             </tr>
                           )
                         })}
-                      </>
+                      </React.Fragment>
                     )
                   })}
                 </tbody>
@@ -1152,6 +1272,20 @@ export default function PaymentsPage() {
           )}
         </div>
       </div>
+
+      {/* Payment Receipt Modal */}
+      {showReceipt && receiptData && (
+        <PaymentReceipt
+          payment={receiptData.payment}
+          paidAmount={receiptData.paidAmount}
+          paymentMethod={receiptData.paymentMethod}
+          paidDate={receiptData.paidDate}
+          onClose={() => {
+            setShowReceipt(false)
+            setReceiptData(null)
+          }}
+        />
+      )}
     </AppLayout>
   )
 }

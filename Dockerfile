@@ -4,18 +4,22 @@ FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json package-lock.json* .npmrc ./
-RUN npm ci --include=dev
+# Use npm ci with frozen lockfile for faster, deterministic installs
+RUN npm ci --prefer-offline --no-audit --include=dev
 
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Generate Prisma client
+# Generate Prisma client with checksum ignore for offline/network issues
+ENV PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
 RUN npx prisma generate
-# Build Next.js
+# Build Next.js with optimizations
+ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
 FROM node:20-alpine AS runner
+RUN apk add --no-cache postgresql-client
 WORKDIR /app
 ENV NODE_ENV=production
 # Create non-root user

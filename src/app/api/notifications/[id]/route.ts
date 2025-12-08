@@ -70,6 +70,7 @@ export async function PUT(
     }
 
     const body = await request.json();
+    console.log(`[Update Notification] Request for ID: ${id}`, body);
     const {
       title,
       message,
@@ -86,12 +87,14 @@ export async function PUT(
     });
 
     if (!existingNotification) {
-      return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
+      console.log(`[Update Notification] Not found: ${id}`);
+      return NextResponse.json({ error: 'Bildirim bulunamadı' }, { status: 404 });
     }
 
     if (existingNotification.status === 'SENT') {
+      console.log(`[Update Notification] Cannot edit SENT notification: ${id}`);
       return NextResponse.json(
-        { error: 'Cannot edit sent notifications' },
+        { error: 'Gönderilmiş bildirimleri düzenleyemezsiniz' },
         { status: 400 }
       );
     }
@@ -126,6 +129,7 @@ export async function PUT(
       }
     });
 
+    console.log(`[Update Notification] Success: ${id}`);
     return NextResponse.json(updatedNotification);
   } catch (error) {
     console.error('Error updating notification:', error);
@@ -150,12 +154,14 @@ export async function DELETE(
     });
 
     if (!existingNotification) {
+      console.log(`[Delete Notification] Not found: ${id}`);
       return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
     }
 
     if (existingNotification.status === 'SENT') {
+      console.log(`[Delete Notification] Cannot delete SENT notification: ${id}`);
       return NextResponse.json(
-        { error: 'Cannot delete sent notifications' },
+        { error: 'Gönderilmiş bildirimleri silemezsiniz' },
         { status: 400 }
       );
     }
@@ -164,6 +170,7 @@ export async function DELETE(
       where: { id }
     });
 
+    console.log(`[Delete Notification] Success: ${id}`);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting notification:', error);

@@ -250,7 +250,7 @@ export default function TrainingsPage() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="container mx-auto py-6">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-center h-64">
             <div className="text-lg">Yükleniyor...</div>
           </div>
@@ -263,7 +263,7 @@ export default function TrainingsPage() {
   if (showAttendanceTracker && selectedSession) {
     return (
       <AppLayout>
-        <div className="container mx-auto py-6 space-y-6">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold">
@@ -305,7 +305,7 @@ export default function TrainingsPage() {
   if (showTrainingForm) {
     return (
       <AppLayout>
-        <div className="container mx-auto py-6 space-y-6">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold">
@@ -402,7 +402,7 @@ export default function TrainingsPage() {
 
   return (
     <AppLayout>
-      <div className="container mx-auto py-6 space-y-6">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Page Header */}
         <div className="flex justify-between items-center">
           <div>

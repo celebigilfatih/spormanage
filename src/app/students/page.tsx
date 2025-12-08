@@ -18,6 +18,7 @@ export default function StudentsPage() {
   const { toast } = useToast()
   const [students, setStudents] = useState<Student[]>([])
   const [groups, setGroups] = useState<Group[]>([])
+  const [branches, setBranches] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showRegistrationForm, setShowRegistrationForm] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
@@ -34,6 +35,7 @@ export default function StudentsPage() {
   // Filters
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedGroup, setSelectedGroup] = useState('all')
+  const [selectedBranch, setSelectedBranch] = useState('all')
   const [statusFilter, setStatusFilter] = useState('active') // Default to active students only
   
   // Pagination
@@ -46,7 +48,8 @@ export default function StudentsPage() {
   useEffect(() => {
     fetchStudents()
     fetchGroups()
-  }, [currentPage, searchTerm, selectedGroup, statusFilter])
+    fetchBranches()
+  }, [currentPage, searchTerm, selectedGroup, selectedBranch, statusFilter])
 
   const fetchStudents = async () => {
     try {
@@ -56,6 +59,7 @@ export default function StudentsPage() {
         limit: '10',
         search: searchTerm,
         groupId: selectedGroup,
+        branchId: selectedBranch,
         status: statusFilter,
       })
 
@@ -82,6 +86,18 @@ export default function StudentsPage() {
       }
     } catch (error) {
       console.error('Failed to fetch groups:', error)
+    }
+  }
+
+  const fetchBranches = async () => {
+    try {
+      const response = await fetch('/api/branches')
+      if (response.ok) {
+        const data = await response.json()
+        setBranches(data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch branches:', error)
     }
   }
 
@@ -292,6 +308,7 @@ export default function StudentsPage() {
   const resetFilters = () => {
     setSearchTerm('')
     setSelectedGroup('all')
+    setSelectedBranch('all')
     setStatusFilter('active') // Reset to active students
     setCurrentPage(1)
   }
@@ -299,7 +316,7 @@ export default function StudentsPage() {
   if (showRegistrationForm || showEditModal) {
     return (
       <AppLayout>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
           <StudentRegistrationForm
             onSubmit={showEditModal ? handleStudentEdit : handleStudentRegistration}
             onCancel={() => {
@@ -320,7 +337,7 @@ export default function StudentsPage() {
     <AppLayout>
       {/* Page Header */}
       <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+        <div className="w-full px-3 sm:px-4 md:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-4 sm:py-6 gap-3 sm:gap-0">
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Öğrenciler</h1>
@@ -341,10 +358,10 @@ export default function StudentsPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
+      <div className="w-full px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
         {/* Filters */}
         <div className="bg-white p-4 sm:p-6 rounded-lg shadow mb-4 sm:mb-6">
-          <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Arama
@@ -373,6 +390,25 @@ export default function StudentsPage() {
                   {groups.map((group) => (
                     <SelectItem key={group.id} value={group.id}>
                       {group.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Şube
+              </label>
+              <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Tüm şubeler" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tüm şubeler</SelectItem>
+                  {branches.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.id}>
+                      {branch.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

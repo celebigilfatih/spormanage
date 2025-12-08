@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Plus, Trash2, Users, User } from 'lucide-react'
-import { StudentFormData, Group, Student } from '@/types'
+import { StudentFormData, Group, Student, Branch } from '@/types'
 
 const parentSchema = z.object({
   firstName: z.string().min(1, 'Ad gerekli'),
@@ -28,6 +28,7 @@ const studentSchema = z.object({
   phone: z.string().optional(),
   birthDate: z.string().optional(),
   groupId: z.string().optional(),
+  branchId: z.string().optional(),
   parents: z.array(parentSchema).min(1, 'En az bir veli gerekli')
 }).refine((data) => {
   return data.parents.some(parent => parent.isPrimary)
@@ -66,6 +67,8 @@ export function StudentRegistrationForm({
 }: StudentRegistrationFormProps) {
   const [groups, setGroups] = useState<Group[]>([])
   const [loadingGroups, setLoadingGroups] = useState(true)
+  const [branches, setBranches] = useState<Branch[]>([])
+  const [loadingBranches, setLoadingBranches] = useState(true)
 
   const {
     register,
@@ -84,6 +87,7 @@ export function StudentRegistrationForm({
       birthDate: initialData.birthDate ? new Date(initialData.birthDate).toISOString().split('T')[0] : '',
       // Extract groupId from either groupId field or group.id
       groupId: initialData.groupId || (initialData.group?.id) || '',
+      branchId: initialData.branchId || (initialData.branch?.id) || '',
       parents: initialData.parents && initialData.parents.length > 0 ? initialData.parents : [
         {
           firstName: '',
@@ -128,6 +132,7 @@ export function StudentRegistrationForm({
         phone: initialData.phone || '',
         birthDate: initialData.birthDate ? new Date(initialData.birthDate).toISOString().split('T')[0] : '',
         groupId: initialData.groupId || (initialData.group?.id) || '',
+        branchId: initialData.branchId || (initialData.branch?.id) || '',
         parents: initialData.parents && initialData.parents.length > 0 ? initialData.parents.map(p => ({
           ...p,
           email: p.email || '',
@@ -150,6 +155,7 @@ export function StudentRegistrationForm({
 
   useEffect(() => {
     fetchGroups()
+    fetchBranches()
   }, [])
 
   const fetchGroups = async () => {
@@ -163,6 +169,20 @@ export function StudentRegistrationForm({
       console.error('Failed to fetch groups:', error)
     } finally {
       setLoadingGroups(false)
+    }
+  }
+
+  const fetchBranches = async () => {
+    try {
+      const response = await fetch('/api/branches')
+      if (response.ok) {
+        const data = await response.json()
+        setBranches(data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch branches:', error)
+    } finally {
+      setLoadingBranches(false)
     }
   }
 
@@ -272,6 +292,25 @@ export function StudentRegistrationForm({
                   {groups.map((group) => (
                     <SelectItem key={group.id} value={group.id}>
                       {group.name} {group.description && `- ${group.description}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="branchId">Şube</Label>
+              <Select 
+                onValueChange={(value) => setValue('branchId', value)}
+                value={watch('branchId') || ''}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={loadingBranches ? "Yükleniyor..." : "Şube seçin"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {branches.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.id}>
+                      {branch.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

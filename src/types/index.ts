@@ -84,12 +84,14 @@ export interface Student {
   phone?: string
   birthDate?: Date
   groupId?: string
+  branchId?: string
   isActive: boolean
   enrollmentDate: Date
   createdAt: Date
   updatedAt: Date
   createdById: string
   group?: Group
+  branch?: Branch
   parents?: Parent[]
   payments?: Payment[]
   notes?: Note[]
@@ -257,6 +259,22 @@ export interface GroupHistory {
   group?: Group
 }
 
+export interface Branch {
+  id: string
+  name: string
+  address?: string
+  phone?: string
+  email?: string
+  managerName?: string
+  isActive: boolean
+  createdAt: Date
+  updatedAt: Date
+  students?: Student[]
+  _count?: {
+    students: number
+  }
+}
+
 // Form data types
 export interface StudentFormData {
   firstName: string
@@ -264,6 +282,7 @@ export interface StudentFormData {
   phone?: string
   birthDate?: string
   groupId?: string
+  branchId?: string
   parents: ParentFormData[]
 }
 

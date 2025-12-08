@@ -22,7 +22,7 @@ export default function AppLayout({ children }: LayoutProps) {
         <Header onMenuClick={() => setMobileOpen(true)} />
         
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto bg-gray-50">
+        <main className="w-full flex-1 overflow-y-auto bg-gray-50">
           {children}
         </main>
       </div>

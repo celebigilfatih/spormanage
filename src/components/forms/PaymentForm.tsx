@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Payment, Student, FeeType, PaymentMethod } from '@/types'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 const paymentSchema = z.object({
   studentId: z.string().min(1, 'Öğrenci seçimi zorunludur'),
@@ -40,6 +40,9 @@ export function PaymentForm({
   const [students, setStudents] = useState<Student[]>([])
   const [feeTypes, setFeeTypes] = useState<FeeType[]>([])
   const [loadingData, setLoadingData] = useState(true)
+  const [studentSearch, setStudentSearch] = useState('')
+  const [showStudentDropdown, setShowStudentDropdown] = useState(false)
+  const studentDropdownRef = useRef<HTMLDivElement>(null)
 
   const {
     register,
@@ -69,9 +72,34 @@ export function PaymentForm({
   const studentId = watch('studentId')
   const feeTypeId = watch('feeTypeId')
 
+  // Filter students based on search
+  const filteredStudents = students.filter(student => {
+    const fullName = `${student.firstName} ${student.lastName}`.toLowerCase()
+    const searchLower = studentSearch.toLowerCase()
+    return fullName.includes(searchLower)
+  })
+
+  // Get selected student name for display
+  const selectedStudent = students.find(s => s.id === studentId)
+  const selectedStudentName = selectedStudent 
+    ? `${selectedStudent.firstName} ${selectedStudent.lastName}${selectedStudent.group ? ` - ${selectedStudent.group.name}` : ''}`
+    : ''
+
   useEffect(() => {
     fetchStudents()
     fetchFeeTypes()
+  }, [])
+
+  // Handle click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (studentDropdownRef.current && !studentDropdownRef.current.contains(event.target as Node)) {
+        setShowStudentDropdown(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   useEffect(() => {
@@ -149,26 +177,50 @@ export function PaymentForm({
       </h2>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Student Selection */}
-        <div>
+        {/* Student Selection - Searchable */}
+        <div className="relative" ref={studentDropdownRef}>
           <Label htmlFor="studentId">Öğrenci *</Label>
-          <Select
-            value={studentId}
-            onValueChange={(value) => setValue('studentId', value)}
-            disabled={mode === 'edit'}
-          >
-            <SelectTrigger className={errors.studentId ? 'border-red-500' : ''}>
-              <SelectValue placeholder="Öğrenci seçin..." />
-            </SelectTrigger>
-            <SelectContent>
-              {students.map((student) => (
-                <SelectItem key={student.id} value={student.id}>
-                  {student.firstName} {student.lastName}
-                  {student.group && ` - ${student.group.name}`}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="relative">
+            <Input
+              type="text"
+              placeholder="Öğrenci ara..."
+              value={studentId && !showStudentDropdown ? selectedStudentName : studentSearch}
+              onChange={(e) => {
+                setStudentSearch(e.target.value)
+                setShowStudentDropdown(true)
+                if (!e.target.value && studentId) {
+                  setValue('studentId', '')
+                }
+              }}
+              onFocus={() => setShowStudentDropdown(true)}
+              disabled={mode === 'edit'}
+              className={errors.studentId ? 'border-red-500' : ''}
+            />
+            {showStudentDropdown && mode !== 'edit' && (
+              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                {filteredStudents.length > 0 ? (
+                  filteredStudents.map((student) => (
+                    <div
+                      key={student.id}
+                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                      onClick={() => {
+                        setValue('studentId', student.id)
+                        setStudentSearch('')
+                        setShowStudentDropdown(false)
+                      }}
+                    >
+                      {student.firstName} {student.lastName}
+                      {student.group && <span className="text-gray-500"> - {student.group.name}</span>}
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-sm text-gray-500">
+                    Öğrenci bulunamadı
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           {errors.studentId && (
             <p className="text-sm text-red-600 mt-1">{errors.studentId.message}</p>
           )}

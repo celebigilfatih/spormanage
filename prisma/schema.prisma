@@ -40,6 +40,7 @@ model Student {
   phone         String?
   birthDate     DateTime?
   groupId       String?
+  branchId      String?     // Şube/Branş ilişkisi
   isActive      Boolean     @default(true)
   enrollmentDate DateTime   @default(now())
   createdAt     DateTime    @default(now())
@@ -48,6 +49,7 @@ model Student {
   
   // Relations
   group         Group?      @relation(fields: [groupId], references: [id])
+  branch        Branch?     @relation(fields: [branchId], references: [id])
   createdBy     User        @relation("StudentCreator", fields: [createdById], references: [id])
   parents       Parent[]    @relation("StudentParents")
   payments      Payment[]
@@ -57,6 +59,7 @@ model Student {
   groupHistories GroupHistory[]
   
   @@index([groupId, isActive])
+  @@index([branchId, isActive])
   @@index([lastName, firstName])
   @@index([isActive])
   @@map("students")
@@ -281,6 +284,23 @@ model Trainer {
   groupsAsAssistant    Group[] @relation("GroupAssistantCoach")
   
   @@map("trainers")
+}
+
+model Branch {
+  id          String    @id @default(cuid())
+  name        String    @unique // Merkez Şube, Anadolu Şubesi, Avrupa Şubesi
+  address     String?
+  phone       String?
+  email       String?
+  managerName String?   // Şube Müdürü
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relations
+  students    Student[]
+  
+  @@map("branches")
 }
 
 // Enums

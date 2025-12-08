@@ -233,7 +233,7 @@ export default function UsersPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
+      <div className="w-full px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
         {/* Filters */}
         <div className="bg-white p-4 sm:p-6 rounded-lg shadow mb-4 sm:mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">

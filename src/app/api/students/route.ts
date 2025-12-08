@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10')
     const search = searchParams.get('search') || ''
     const groupId = searchParams.get('groupId') || ''
+    const branchId = searchParams.get('branchId') || ''
     const status = searchParams.get('status') || 'all'
 
     const skip = (page - 1) * limit
@@ -39,6 +40,10 @@ export async function GET(request: NextRequest) {
 
     if (groupId && groupId !== 'all') {
       where.groupId = groupId
+    }
+
+    if (branchId && branchId !== 'all') {
+      where.branchId = branchId
     }
 
     if (status === 'active') {
@@ -62,6 +67,12 @@ export async function GET(request: NextRequest) {
           isActive: true,
           enrollmentDate: true,
           group: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
+          branch: {
             select: {
               id: true,
               name: true
@@ -141,7 +152,8 @@ export async function POST(request: NextRequest) {
       lastName, 
       phone, 
       birthDate, 
-      groupId, 
+      groupId,
+      branchId,
       parents 
     } = data
 
@@ -171,6 +183,7 @@ export async function POST(request: NextRequest) {
           phone,
           birthDate: birthDate ? new Date(birthDate) : null,
           groupId: groupId || null,
+          branchId: branchId || null,
           createdById: user.id,
         }
       })

@@ -71,9 +71,9 @@ export async function PUT(
     const { id } = await params
     const { name, amount, period, groupId } = await request.json()
 
-    if (!name || !amount || !period) {
+    if (!name || !period) {
       return NextResponse.json(
-        { error: 'Name, amount, and period are required' },
+        { error: 'Name and period are required' },
         { status: 400 }
       )
     }
@@ -82,7 +82,7 @@ export async function PUT(
       where: { id },
       data: {
         name,
-        amount: parseFloat(amount),
+        amount: amount ? parseFloat(amount) : 0,
         period,
         groupId: groupId || null,
       },

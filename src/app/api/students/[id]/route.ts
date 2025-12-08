@@ -26,6 +26,7 @@ export async function GET(
       where: { id },
       include: {
         group: true,
+        branch: true,
         parents: true,
         createdBy: {
           select: { id: true, name: true, email: true }
@@ -85,7 +86,8 @@ export async function PUT(
       lastName, 
       phone, 
       birthDate, 
-      groupId, 
+      groupId,
+      branchId,
       isActive,
       parents 
     } = data
@@ -119,6 +121,7 @@ export async function PUT(
           phone,
           birthDate: birthDate ? new Date(birthDate) : null,
           groupId: groupId || null,
+          branchId: branchId || null,
           isActive: isActive !== undefined ? isActive : true,
         }
       })

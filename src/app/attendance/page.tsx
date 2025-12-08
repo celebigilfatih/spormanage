@@ -217,7 +217,7 @@ export default function AttendancePage() {
   if (showAttendanceTracker && selectedSession) {
     return (
       <AppLayout>
-        <div className="container mx-auto py-6">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
           <AttendanceTracker
             session={selectedSession as any}
             onSubmit={handleAttendanceSubmit}
@@ -233,7 +233,7 @@ export default function AttendancePage() {
 
   return (
     <AppLayout>
-      <div className="container mx-auto py-6 space-y-6">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Page Header */}
         <div className="flex justify-between items-center">
           <div>

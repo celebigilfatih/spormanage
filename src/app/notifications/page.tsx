@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useToast } from '@/hooks/use-toast';
 import { Bell, Send, Plus, Filter, MoreVertical, Mail, MessageSquare, Smartphone, Calendar, User, AlertCircle, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
@@ -63,12 +64,27 @@ interface Student {
   }[];
 }
 
+interface Group {
+  id: string;
+  name: string;
+}
+
+interface Trainer {
+  id: string;
+  name: string;
+  email: string;
+}
+
 export default function NotificationsPage() {
+  const { toast } = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedNotifications, setSelectedNotifications] = useState<string[]>([]);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [editingNotification, setEditingNotification] = useState<Notification | null>(null);
   const [filters, setFilters] = useState({
     type: 'all',
     status: 'all',
@@ -82,7 +98,10 @@ export default function NotificationsPage() {
     message: '',
     type: 'GENERAL_ANNOUNCEMENT',
     method: 'IN_APP',
+    recipientType: 'students', // students, groups, trainers
     studentId: 'all',
+    groupId: 'all',
+    trainerId: 'all',
     scheduledAt: '',
     recipientEmail: '',
     recipientPhone: ''
@@ -91,6 +110,8 @@ export default function NotificationsPage() {
   useEffect(() => {
     fetchNotifications();
     fetchStudents();
+    fetchGroups();
+    fetchTrainers();
   }, [filters]);
 
   const fetchNotifications = async () => {
@@ -126,32 +147,83 @@ export default function NotificationsPage() {
     }
   };
 
+  const fetchGroups = async () => {
+    try {
+      const response = await fetch('/api/groups');
+      const data = await response.json();
+      
+      if (response.ok) {
+        setGroups(data.groups || []);
+      }
+    } catch (error) {
+      console.error('Error fetching groups:', error);
+    }
+  };
+
+  const fetchTrainers = async () => {
+    try {
+      const response = await fetch('/api/trainers');
+      const data = await response.json();
+      
+      if (response.ok) {
+        setTrainers(data.trainers || []);
+      }
+    } catch (error) {
+      console.error('Error fetching trainers:', error);
+    }
+  };
+
   const handleCreateNotification = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
-      const response = await fetch('/api/notifications', {
-        method: 'POST',
+      const url = editingNotification 
+        ? `/api/notifications/${editingNotification.id}` 
+        : '/api/notifications';
+      const method = editingNotification ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
 
       if (response.ok) {
+        toast({
+          title: '✅ Başarılı!',
+          description: editingNotification ? 'Bildirim güncellendi' : 'Bildirim oluşturuldu'
+        });
         setShowCreateDialog(false);
+        setEditingNotification(null);
         setFormData({
           title: '',
           message: '',
           type: 'GENERAL_ANNOUNCEMENT',
           method: 'IN_APP',
+          recipientType: 'students',
           studentId: 'all',
+          groupId: 'all',
+          trainerId: 'all',
           scheduledAt: '',
           recipientEmail: '',
           recipientPhone: ''
         });
         fetchNotifications();
+      } else {
+        const error = await response.json();
+        toast({
+          variant: 'destructive',
+          title: '❌ Hata!',
+          description: error.error || 'İşlem başarısız'
+        });
       }
     } catch (error) {
-      console.error('Error creating notification:', error);
+      console.error('Error creating/updating notification:', error);
+      toast({
+        variant: 'destructive',
+        title: '❌ Hata!',
+        description: 'İşlem sırasında bir hata oluştu'
+      });
     }
   };
 
@@ -188,6 +260,58 @@ export default function NotificationsPage() {
       }
     } catch (error) {
       console.error('Error performing bulk action:', error);
+    }
+  };
+
+  const handleEditNotification = (notification: Notification) => {
+    setEditingNotification(notification);
+    setFormData({
+      title: notification.title,
+      message: notification.message,
+      type: notification.type,
+      method: notification.method,
+      recipientType: 'students',
+      studentId: notification.student?.id || 'all',
+      groupId: 'all',
+      trainerId: 'all',
+      scheduledAt: notification.scheduledAt ? new Date(notification.scheduledAt).toISOString().slice(0, 16) : '',
+      recipientEmail: notification.recipientEmail || '',
+      recipientPhone: notification.recipientPhone || ''
+    });
+    setShowCreateDialog(true);
+  };
+
+  const handleDeleteNotification = async (id: string) => {
+    if (!confirm('Bu bildirimi silmek istediğinizden emin misiniz?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/notifications/${id}`, {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        toast({
+          title: '✅ Silindi!',
+          description: 'Bildirim başarıyla silindi'
+        });
+        fetchNotifications();
+      } else {
+        const error = await response.json();
+        toast({
+          variant: 'destructive',
+          title: '❌ Hata!',
+          description: error.error || 'Bildirim silinemedi'
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      toast({
+        variant: 'destructive',
+        title: '❌ Hata!',
+        description: 'Bildirim silinirken bir hata oluştu'
+      });
     }
   };
 
@@ -246,14 +370,32 @@ export default function NotificationsPage() {
 
   return (
     <AppLayout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Page Header */}
         <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Bildirimler</h1>
           <p className="text-gray-600">Öğrenci ve veli bildirimlerini yönetin</p>
         </div>
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <Dialog open={showCreateDialog} onOpenChange={(open) => {
+          setShowCreateDialog(open);
+          if (!open) {
+            setEditingNotification(null);
+            setFormData({
+              title: '',
+              message: '',
+              type: 'GENERAL_ANNOUNCEMENT',
+              method: 'IN_APP',
+              recipientType: 'students',
+              studentId: 'all',
+              groupId: 'all',
+              trainerId: 'all',
+              scheduledAt: '',
+              recipientEmail: '',
+              recipientPhone: ''
+            });
+          }
+        }}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="w-4 h-4 mr-2" />
@@ -262,9 +404,9 @@ export default function NotificationsPage() {
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Yeni Bildirim Oluştur</DialogTitle>
+              <DialogTitle>{editingNotification ? 'Bildirimi Düzenle' : 'Yeni Bildirim Oluştur'}</DialogTitle>
               <DialogDescription>
-                Öğrenciler ve veliler için bildirim oluşturun
+                Öğrenciler ve veliler için bildirim {editingNotification ? 'düzenleyin' : 'oluşturun'}
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={(e: React.FormEvent) => handleCreateNotification(e)} className="space-y-4">
@@ -278,7 +420,24 @@ export default function NotificationsPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Öğrenci (Opsiyonel)</label>
+                  <label className="text-sm font-medium">Alıcı Tipi</label>
+                  <Select value={formData.recipientType} onValueChange={(value) => setFormData({ ...formData, recipientType: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Alıcı tipi seçin" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="students">Öğrenciler</SelectItem>
+                      <SelectItem value="groups">Gruplar</SelectItem>
+                      <SelectItem value="trainers">Antrenörler</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Conditional recipient selection based on type */}
+              {formData.recipientType === 'students' && (
+                <div>
+                  <label className="text-sm font-medium">Öğrenci Seçin</label>
                   <Select value={formData.studentId} onValueChange={(value) => setFormData({ ...formData, studentId: value })}>
                     <SelectTrigger>
                       <SelectValue placeholder="Öğrenci seçin" />
@@ -293,7 +452,45 @@ export default function NotificationsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
+              )}
+
+              {formData.recipientType === 'groups' && (
+                <div>
+                  <label className="text-sm font-medium">Grup Seçin</label>
+                  <Select value={formData.groupId} onValueChange={(value) => setFormData({ ...formData, groupId: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Grup seçin" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tüm gruplar</SelectItem>
+                      {groups.map((group) => (
+                        <SelectItem key={group.id} value={group.id}>
+                          {group.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {formData.recipientType === 'trainers' && (
+                <div>
+                  <label className="text-sm font-medium">Antrenör Seçin</label>
+                  <Select value={formData.trainerId} onValueChange={(value) => setFormData({ ...formData, trainerId: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Antrenör seçin" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tüm antrenörler</SelectItem>
+                      {trainers.map((trainer) => (
+                        <SelectItem key={trainer.id} value={trainer.id}>
+                          {trainer.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div>
                 <label className="text-sm font-medium">Mesaj</label>
@@ -363,11 +560,14 @@ export default function NotificationsPage() {
               </div>
 
               <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>
+                <Button type="button" variant="outline" onClick={() => {
+                  setShowCreateDialog(false);
+                  setEditingNotification(null);
+                }}>
                   İptal
                 </Button>
                 <Button type="submit">
-                  Oluştur
+                  {editingNotification ? 'Güncelle' : 'Oluştur'}
                 </Button>
               </div>
             </form>
@@ -544,10 +744,13 @@ export default function NotificationsPage() {
                         Şimdi Gönder
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleEditNotification(notification)}>
                       Düzenle
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="text-red-600">
+                    <DropdownMenuItem 
+                      className="text-red-600"
+                      onClick={() => handleDeleteNotification(notification.id)}
+                    >
                       Sil
                     </DropdownMenuItem>
                   </DropdownMenuContent>
