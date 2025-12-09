@@ -18,6 +18,8 @@ export async function POST(request: NextRequest) {
       where: { email },
     })
 
+    console.log('[Login] User lookup for:', email, 'Found:', !!user)
+
     if (!user) {
       return NextResponse.json(
         { error: 'Geçersiz email veya şifre' },
@@ -27,6 +29,8 @@ export async function POST(request: NextRequest) {
 
     // Verify password
     const isPasswordValid = await AuthService.verifyPassword(password, user.password)
+    
+    console.log('[Login] Password verification for:', email, 'Valid:', isPasswordValid)
 
     if (!isPasswordValid) {
       return NextResponse.json(
@@ -62,7 +66,7 @@ export async function POST(request: NextRequest) {
 
     response.cookies.set('auth-token', token, {
       httpOnly: true,
-      secure: false, // Set to true only when using HTTPS
+      secure: process.env.NODE_ENV === 'production', // true in production (HTTPS)
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24 * 7, // 7 days
