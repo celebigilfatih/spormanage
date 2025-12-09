@@ -30,6 +30,8 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/scripts/startup.sh ./scripts/startup.sh
+COPY --from=builder /app/src ./src
 
 # Conditionally copy public directory if it exists and is not empty
 RUN if [ -d "/app/public" ] && [ "$(ls -A /app/public)" ]; then \
@@ -37,7 +39,8 @@ RUN if [ -d "/app/public" ] && [ "$(ls -A /app/public)" ]; then \
     fi
 
 RUN chown -R nextjs:nodejs /app
+RUN chmod +x /app/scripts/startup.sh
 
 EXPOSE 3000
 USER nextjs
-CMD ["node", "server.js"]
+CMD ["/app/scripts/startup.sh"]

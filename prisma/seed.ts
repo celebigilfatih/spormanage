@@ -7,30 +7,33 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('🌱 Seeding database...')
 
-  // Create admin user
-  const adminEmail = 'admin@futbolokulu.com'
-  const adminPassword = 'admin123'
+  // Create admin user - read from environment or use defaults
+  const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@futbolokulu.com'
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'admin123'
+  const adminName = process.env.SEED_ADMIN_NAME || 'Admin User'
 
   const existingAdmin = await prisma.user.findUnique({
     where: { email: adminEmail }
   })
 
   if (!existingAdmin) {
+    console.log(`📝 Creating admin user: ${adminEmail}`)
     const hashedPassword = await AuthService.hashPassword(adminPassword)
     
     const admin = await prisma.user.create({
       data: {
         email: adminEmail,
         password: hashedPassword,
-        name: 'Admin User',
+        name: adminName,
         phone: '+90 555 123 4567',
         role: UserRole.ADMIN,
       }
     })
 
     console.log(`✅ Admin user created: ${admin.email}`)
+    console.log(`🔑 Login credentials: ${adminEmail} / ${adminPassword}`)
   } else {
-    console.log('✅ Admin user already exists')
+    console.log(`✅ Admin user already exists: ${adminEmail}`)
   }
 
   // Create sample groups
