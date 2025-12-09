@@ -30,6 +30,8 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
+COPY --from=builder /app/node_modules/@types ./node_modules/@types
 COPY --from=builder /app/scripts/startup.sh ./scripts/startup.sh
 COPY --from=builder /app/src ./src
 
