@@ -123,9 +123,15 @@ export interface Group {
   id: string
   name: string
   description?: string
+  coachId?: string
+  assistantCoachId?: string
+  branchId?: string
   isActive: boolean
   createdAt: Date
   updatedAt: Date
+  coach?: any // Trainer interface
+  assistantCoach?: any // Trainer interface
+  branch?: Branch
   students?: Student[]
   feeTypes?: FeeType[]
   trainings?: Training[]
@@ -270,6 +276,7 @@ export interface Branch {
   createdAt: Date
   updatedAt: Date
   students?: Student[]
+  groups?: Group[]
   _count?: {
     students: number
   }

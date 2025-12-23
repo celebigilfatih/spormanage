@@ -90,6 +90,7 @@ model Group {
   description String?
   coachId     String?   // Ana antrenör
   assistantCoachId String? // Yardımcı antrenör
+  branchId    String?   // Şube/Branch
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -97,6 +98,7 @@ model Group {
   // Relations
   coach       Trainer?  @relation("GroupCoach", fields: [coachId], references: [id])
   assistantCoach Trainer? @relation("GroupAssistantCoach", fields: [assistantCoachId], references: [id])
+  branch      Branch?   @relation(fields: [branchId], references: [id])
   students    Student[]
   feeTypes    FeeType[]
   trainings   Training[]
@@ -299,6 +301,7 @@ model Branch {
   
   // Relations
   students    Student[]
+  groups      Group[]
   
   @@map("branches")
 }

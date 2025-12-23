@@ -21,6 +21,12 @@ export async function GET() {
             position: true
           }
         },
+        branch: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
         _count: {
           select: { students: true }
         }
@@ -39,11 +45,18 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, description, coachId, assistantCoachId } = await request.json()
+    const { name, description, coachId, assistantCoachId, branchId } = await request.json()
 
     if (!name) {
       return NextResponse.json(
         { error: 'Group name is required' },
+        { status: 400 }
+      )
+    }
+
+    if (!branchId) {
+      return NextResponse.json(
+        { error: 'Branch is required' },
         { status: 400 }
       )
     }
@@ -65,6 +78,7 @@ export async function POST(request: NextRequest) {
         description,
         coachId: coachId || null,
         assistantCoachId: assistantCoachId || null,
+        branchId: branchId || null,
       },
       include: {
         coach: {
@@ -79,6 +93,12 @@ export async function POST(request: NextRequest) {
             id: true,
             name: true,
             position: true
+          }
+        },
+        branch: {
+          select: {
+            id: true,
+            name: true
           }
         }
       }

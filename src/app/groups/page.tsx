@@ -32,6 +32,7 @@ export default function GroupsPage() {
   const { user } = useAuth()
   const [groups, setGroups] = useState<GroupWithStats[]>([])
   const [trainers, setTrainers] = useState<any[]>([])
+  const [branches, setBranches] = useState<any[]>([])
   const [selectedGroup, setSelectedGroup] = useState<GroupWithStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -46,7 +47,8 @@ export default function GroupsPage() {
     name: '',
     description: '',
     coachId: '',
-    assistantCoachId: ''
+    assistantCoachId: '',
+    branchId: ''
   })
   const [transferForm, setTransferForm] = useState({
     newGroupId: '',
@@ -58,6 +60,7 @@ export default function GroupsPage() {
   useEffect(() => {
     fetchGroups()
     fetchTrainers()
+    fetchBranches()
   }, [])
 
   const fetchGroups = async () => {
@@ -76,6 +79,18 @@ export default function GroupsPage() {
       console.error('Failed to fetch groups:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchBranches = async () => {
+    try {
+      const response = await fetch('/api/branches')
+      if (response.ok) {
+        const data = await response.json()
+        setBranches(data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch branches:', error)
     }
   }
 
@@ -118,7 +133,7 @@ export default function GroupsPage() {
       if (response.ok) {
         setShowEditForm(false)
         setEditingGroup(null)
-        setGroupForm({ name: '', description: '', coachId: '', assistantCoachId: '' })
+        setGroupForm({ name: '', description: '', coachId: '', assistantCoachId: '', branchId: '' })
         fetchGroups()
         // TODO: Show success toast
       } else {
@@ -212,7 +227,8 @@ export default function GroupsPage() {
       name: group.name,
       description: group.description || '',
       coachId: (group as any).coachId || '',
-      assistantCoachId: (group as any).assistantCoachId || ''
+      assistantCoachId: (group as any).assistantCoachId || '',
+      branchId: (group as any).branchId || ''
     })
     setShowEditForm(true)
   }
@@ -231,7 +247,7 @@ export default function GroupsPage() {
 
       if (response.ok) {
         setShowCreateForm(false)
-        setGroupForm({ name: '', description: '', coachId: '', assistantCoachId: '' })
+        setGroupForm({ name: '', description: '', coachId: '', assistantCoachId: '', branchId: '' })
         fetchGroups()
         // TODO: Show success toast
       } else {
@@ -288,6 +304,30 @@ export default function GroupsPage() {
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-semibold mb-4">Yeni Grup Oluştur</h3>
             <form onSubmit={handleCreateGroup} className="space-y-4">
+              <div>
+                <Label htmlFor="branch">Şube *</Label>
+                <Select
+                  value={groupForm.branchId || ''}
+                  onValueChange={(value) => setGroupForm({ ...groupForm, branchId: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Şube seçin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches && branches.length > 0 ? (
+                      branches.filter(b => b.isActive).map((branch) => (
+                        <SelectItem key={branch.id} value={branch.id}>
+                          {branch.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="" disabled>
+                        Şube yükleniyor...
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
               <div>
                 <Label htmlFor="name">Grup Adı *</Label>
                 <Input
@@ -372,6 +412,30 @@ export default function GroupsPage() {
             <h3 className="text-lg font-semibold mb-4">Grup Düzenle</h3>
             <form onSubmit={handleEditGroup} className="space-y-4">
               <div>
+                <Label htmlFor="editBranch">Şube *</Label>
+                <Select
+                  value={groupForm.branchId || ''}
+                  onValueChange={(value) => setGroupForm({ ...groupForm, branchId: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Şube seçin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches && branches.length > 0 ? (
+                      branches.filter(b => b.isActive).map((branch) => (
+                        <SelectItem key={branch.id} value={branch.id}>
+                          {branch.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="" disabled>
+                        Şube yükleniyor...
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label htmlFor="editName">Grup Adı *</Label>
                 <Input
                   id="editName"
@@ -433,7 +497,7 @@ export default function GroupsPage() {
                   onClick={() => {
                     setShowEditForm(false)
                     setEditingGroup(null)
-                    setGroupForm({ name: '', description: '', coachId: '', assistantCoachId: '' })
+                    setGroupForm({ name: '', description: '', coachId: '', assistantCoachId: '', branchId: '' })
                   }}
                   disabled={isSubmitting}
                 >
@@ -603,6 +667,12 @@ export default function GroupsPage() {
                       
                       {/* Coach Information */}
                       <div className="mt-3 space-y-1">
+                        {(selectedGroup as any).branch && (
+                          <div className="flex items-center text-sm text-gray-600">
+                            <span className="font-medium">Şube:</span>
+                            <span className="ml-2">{(selectedGroup as any).branch.name}</span>
+                          </div>
+                        )}
                         {(selectedGroup as any).coach && (
                           <div className="flex items-center text-sm text-gray-600">
                             <UserCheck className="h-4 w-4 mr-2" />

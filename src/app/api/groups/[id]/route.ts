@@ -40,6 +40,12 @@ export async function GET(
             license: true
           }
         },
+        branch: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
         students: {
           where: { isActive: true },
           include: {
@@ -68,7 +74,6 @@ export async function GET(
         }
       }
     })
-
     if (!group) {
       return NextResponse.json(
         { error: 'Group not found' },
@@ -107,11 +112,18 @@ export async function PUT(
     }
 
     const { id: groupId } = await params
-    const { name, description, coachId, assistantCoachId } = await request.json()
+    const { name, description, coachId, assistantCoachId, branchId } = await request.json()
 
     if (!name) {
       return NextResponse.json(
         { error: 'Group name is required' },
+        { status: 400 }
+      )
+    }
+
+    if (!branchId) {
+      return NextResponse.json(
+        { error: 'Branch is required' },
         { status: 400 }
       )
     }
@@ -149,6 +161,7 @@ export async function PUT(
         description: description || null,
         coachId: coachId || null,
         assistantCoachId: assistantCoachId || null,
+        branchId: branchId || null,
       },
       include: {
         coach: {
@@ -163,6 +176,12 @@ export async function PUT(
             id: true,
             name: true,
             position: true
+          }
+        },
+        branch: {
+          select: {
+            id: true,
+            name: true
           }
         },
         students: {
