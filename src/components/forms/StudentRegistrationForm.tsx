@@ -199,6 +199,11 @@ export function StudentRegistrationForm({
     })
   }
 
+  // Get groups filtered by selected branch
+  const filteredGroups = watch('branchId')
+    ? groups.filter(group => group.branchId === watch('branchId'))
+    : groups
+
   const removeParent = (index: number) => {
     if (fields.length > 1) {
       remove(index)
@@ -280,25 +285,6 @@ export function StudentRegistrationForm({
             </div>
 
             <div>
-              <Label htmlFor="groupId">Grup</Label>
-              <Select 
-                onValueChange={(value) => setValue('groupId', value)}
-                value={watch('groupId') || ''}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={loadingGroups ? "Yükleniyor..." : "Grup seçin"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {groups.map((group) => (
-                    <SelectItem key={group.id} value={group.id}>
-                      {group.name} {group.description && `- ${group.description}`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
               <Label htmlFor="branchId">Şube</Label>
               <Select 
                 onValueChange={(value) => setValue('branchId', value)}
@@ -313,6 +299,31 @@ export function StudentRegistrationForm({
                       {branch.name}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="groupId">Grup</Label>
+              <Select 
+                onValueChange={(value) => setValue('groupId', value)}
+                value={watch('groupId') || ''}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={!watch('branchId') ? "Önce şube seçin" : loadingGroups ? "Yükleniyor..." : "Grup seçin"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredGroups.length > 0 ? (
+                    filteredGroups.map((group) => (
+                      <SelectItem key={group.id} value={group.id}>
+                        {group.name} {group.description && `- ${group.description}`}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="no-groups" disabled>
+                      {!watch('branchId') ? 'Şube seçin' : 'Bu şubede grup yok'}
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
