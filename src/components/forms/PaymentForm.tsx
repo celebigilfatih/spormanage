@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Payment, Student, FeeType, PaymentMethod } from '@/types'
+import { Payment, Student, FeeType, PaymentMethod, Branch } from '@/types'
 import { useState, useEffect, useRef } from 'react'
 
 const paymentSchema = z.object({
@@ -38,6 +38,8 @@ export function PaymentForm({
   mode = 'create'
 }: PaymentFormProps) {
   const [students, setStudents] = useState<Student[]>([])
+  const [branches, setBranches] = useState<Branch[]>([])
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('')
   const [feeTypes, setFeeTypes] = useState<FeeType[]>([])
   const [loadingData, setLoadingData] = useState(true)
   const [studentSearch, setStudentSearch] = useState('')
@@ -72,8 +74,14 @@ export function PaymentForm({
   const studentId = watch('studentId')
   const feeTypeId = watch('feeTypeId')
 
-  // Filter students based on search
+  // Filter students based on branch and search
   const filteredStudents = students.filter(student => {
+    // Filter by branch if selected (and not 'all')
+    if (selectedBranchId && selectedBranchId !== 'all' && student.branchId !== selectedBranchId) {
+      return false
+    }
+    
+    // Filter by search
     const fullName = `${student.firstName} ${student.lastName}`.toLowerCase()
     const searchLower = studentSearch.toLowerCase()
     return fullName.includes(searchLower)
@@ -86,6 +94,7 @@ export function PaymentForm({
     : ''
 
   useEffect(() => {
+    fetchBranches()
     fetchStudents()
     fetchFeeTypes()
   }, [])
@@ -144,6 +153,18 @@ export function PaymentForm({
     }
   }, [feeTypeId, feeTypes, initialData, setValue])
 
+  const fetchBranches = async () => {
+    try {
+      const response = await fetch('/api/branches')
+      if (response.ok) {
+        const data = await response.json()
+        setBranches(data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch branches:', error)
+    }
+  }
+
   const fetchStudents = async () => {
     try {
       const response = await fetch('/api/students?status=active&limit=1000')
@@ -177,6 +198,38 @@ export function PaymentForm({
       </h2>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {/* Branch Selection */}
+        <div>
+          <Label htmlFor="branchId">Şube</Label>
+          <Select
+            value={selectedBranchId}
+            onValueChange={(value) => {
+              setSelectedBranchId(value)
+              // Clear selected student when branch changes
+              setValue('studentId', '')
+              setStudentSearch('')
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Tüm şubeler" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tüm Şubeler</SelectItem>
+              {branches.filter(b => b.isActive).map((branch) => (
+                <SelectItem key={branch.id} value={branch.id}>
+                  {branch.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-gray-500 mt-1">
+            {selectedBranchId && selectedBranchId !== 'all' 
+              ? `${filteredStudents.length} öğrenci listeleniyor`
+              : `Toplam ${students.length} öğrenci`
+            }
+          </p>
+        </div>
+
         {/* Student Selection - Searchable */}
         <div className="relative" ref={studentDropdownRef}>
           <Label htmlFor="studentId">Öğrenci *</Label>
@@ -209,8 +262,12 @@ export function PaymentForm({
                         setShowStudentDropdown(false)
                       }}
                     >
-                      {student.firstName} {student.lastName}
-                      {student.group && <span className="text-gray-500"> - {student.group.name}</span>}
+                      <div className="font-medium">{student.firstName} {student.lastName}</div>
+                      <div className="text-xs text-gray-500">
+                        {student.group && <span>{student.group.name}</span>}
+                        {student.branch && student.group && <span> • </span>}
+                        {student.branch && <span>{student.branch.name}</span>}
+                      </div>
                     </div>
                   ))
                 ) : (

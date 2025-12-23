@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yeni Müşteri Kurulum Rehberi - Spormanage</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #2563eb; border-bottom: 3px solid #2563eb; padding-bottom: 10px; margin-bottom: 30px; }
+        h2 { color: #1e40af; margin-top: 30px; margin-bottom: 15px; padding-left: 10px; border-left: 4px solid #3b82f6; }
+        h3 { color: #4b5563; margin-top: 20px; margin-bottom: 10px; }
+        .step { background: #f0f9ff; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #3b82f6; }
+        .step-number { display: inline-block; background: #2563eb; color: white; width: 30px; height: 30px; border-radius: 50%; text-align: center; line-height: 30px; margin-right: 10px; font-weight: bold; }
+        code { background: #1e293b; color: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 14px; }
+        pre { background: #1e293b; color: #e2e8f0; padding: 15px; border-radius: 6px; overflow-x: auto; margin: 10px 0; }
+        pre code { background: none; padding: 0; }
+        .warning { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 15px 0; border-radius: 4px; }
+        .success { background: #d1fae5; border-left: 4px solid #10b981; padding: 15px; margin: 15px 0; border-radius: 4px; }
+        .info { background: #dbeafe; border-left: 4px solid #3b82f6; padding: 15px; margin: 15px 0; border-radius: 4px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        table th { background: #2563eb; color: white; padding: 12px; text-align: left; }
+        table td { padding: 10px; border-bottom: 1px solid #e5e7eb; }
+        table tr:nth-child(even) { background: #f9fafb; }
+        .command { background: #1e293b; color: #22c55e; padding: 3px 8px; border-radius: 4px; font-family: monospace; }
+        ul { margin-left: 20px; margin-top: 10px; }
+        li { margin: 8px 0; }
+        .emoji { font-size: 1.2em; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Yeni Müşteri Kurulum Rehberi</h1>
+        <p><strong>Spormanage Multi-Tenant Deployment Guide</strong></p>
+        <p>Bu dokümanda yeni bir müşteri için Coolify üzerinde uygulama kurulumu adım adım anlatılmaktadır.</p>
+
+        <div class="info">
+            <strong>📌 Genel Mimari:</strong><br>
+            ✅ Tek PostgreSQL servisi (paylaşımlı)<br>
+            ✅ Her müşteri için ayrı database<br>
+            ✅ Her müşteri için ayrı application instance<br>
+            ✅ Aynı Docker image, farklı environment variable'lar
+        </div>
+
+        <h2>1️⃣ PostgreSQL Database Oluşturma</h2>
+        
+        <div class="step">
+            <h3><span class="step-number">1</span>Coolify PostgreSQL Terminaline Bağlan</h3>
+            <p>Coolify → <strong>Servers</strong> → PostgreSQL Resource → <strong>Terminal</strong></p>
+            <pre><code>psql -U postgres</code></pre>
+        </div>
+
+        <div class="step">
+            <h3><span class="step-number">2</span>Yeni Database Oluştur</h3>
+            <p>Örnek: <strong>kulturpay</strong> müşterisi için</p>
+            <pre><code>CREATE DATABASE kulturpay;</code></pre>
+            <p>Kontrol:</p>
+            <pre><code>\l</code></pre>
+        </div>
+
+        <div class="step">
+            <h3><span class="step-number">3</span>Çık</h3>
+            <pre><code>\q</code></pre>
+        </div>
+
+        <h2>2️⃣ Coolify'de Yeni Application Oluşturma</h2>
+
+        <div class="step">
+            <h3><span class="step-number">1</span>Yeni Resource Ekle</h3>
+            <p>Coolify → <strong>Projects</strong> → Aidat_Takip → <strong>+ New</strong> → <strong>Application</strong></p>
+            <ul>
+                <li><strong>Name:</strong> kulturpay (veya müşteri adı)</li>
+                <li><strong>Git Repository:</strong> https://github.com/celebigilfatih/spormanage.git</li>
+                <li><strong>Branch:</strong> main</li>
+                <li><strong>Build Pack:</strong> nixpacks</li>
+            </ul>
+        </div>
+
+        <div class="step">
+            <h3><span class="step-number">2</span>Domain Ayarları</h3>
+            <p>Configuration → <strong>Domains</strong></p>
+            <ul>
+                <li><strong>Domain:</strong> kulturpay.spormanage.com.tr</li>
+                <li>✅ <strong>HTTPS</strong> aktif</li>
+            </ul>
+        </div>
+
+        <h2>3️⃣ Environment Variables Ayarlama</h2>
+
+        <div class="step">
+            <h3><span class="step-number">1</span>Gerekli Environment Variable'lar</h3>
+            <p>Configuration → <strong>Environment Variables</strong> → <strong>Production</strong></p>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Variable Name</th>
+                        <th>Value Example</th>
+                        <th>Available at Runtime</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>DATABASE_URL</code></td>
+                        <td><code>postgresql://postgres:Thor.7485-aidat@f4gwswcwo48cww88c80s8sg8:5432/kulturpay?schema=public</code></td>
+                        <td>✅</td>
+                    </tr>
+                    <tr>
+                        <td><code>JWT_SECRET</code></td>
+                        <td><code>kultur-jwt-secret-xyz789</code></td>
+                        <td>✅</td>
+                    </tr>
+                    <tr>
+                        <td><code>NEXTAUTH_SECRET</code></td>
+                        <td><code>kultur-nextauth-abc456</code></td>
+                        <td>✅</td>
+                    </tr>
+                    <tr>
+                        <td><code>NEXTAUTH_URL</code></td>
+                        <td><code>https://kulturpay.spormanage.com.tr</code></td>
+                        <td>✅</td>
+                    </tr>
+                    <tr>
+                        <td><code>NODE_ENV</code></td>
+                        <td><code>production</code></td>
+                        <td>✅</td>
+                    </tr>
+                    <tr>
+                        <td><code>SEED_ADMIN_EMAIL</code></td>
+                        <td><code>kulturpay@spormanage.com.tr</code></td>
+                        <td>✅</td>
+                    </tr>
+                    <tr>
+                        <td><code>SEED_ADMIN_PASSWORD</code></td>
+                        <td><code>Kultur2025Pay!!</code></td>
+                        <td>✅</td>
+                    </tr>
+                    <tr>
+                        <td><code>SEED_ADMIN_NAME</code></td>
+                        <td><code>Kültür Admin</code></td>
+                        <td>✅</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="warning">
+                <strong>⚠️ Önemli Notlar:</strong><br>
+                • Her müşteri için <strong>farklı JWT_SECRET</strong> ve <strong>NEXTAUTH_SECRET</strong> kullan<br>
+                • DATABASE_URL'de <strong>database adını</strong> değiştirmeyi unutma<br>
+                • NEXTAUTH_URL müşterinin kendi domain'i olmalı
+            </div>
+        </div>
+
+        <h2>4️⃣ İlk Deploy</h2>
+
+        <div class="step">
+            <h3><span class="step-number">1</span>Deploy Et</h3>
+            <p>Coolify → kulturpay app → <strong>Deploy</strong> butonuna bas</p>
+            <p>Deploy süresi: <strong>~2-3 dakika</strong></p>
+        </div>
+
+        <div class="step">
+            <h3><span class="step-number">2</span>Deploy Loglarını Kontrol Et</h3>
+            <p>Şu satırları görmek istiyorsun:</p>
+            <pre><code>🚀 Starting application setup...
+📦 Running database migrations...
+Prisma schema loaded from prisma/schema.prisma
+4 migrations found in prisma/migrations
+No pending migrations to apply.
+👤 Checking/creating admin user...
+⚠️ Seed skipped (dependencies not available in production build)
+✅ Starting Next.js server...
+✓ Ready in 120ms</code></pre>
+
+            <div class="info">
+                <strong>💡 Not:</strong> Seed script bcryptjs/jsonwebtoken bulamadığı için atlanır, bu normal. Admin kullanıcıyı manuel oluşturacağız.
+            </div>
+        </div>
+
+        <h2>5️⃣ Admin Kullanıcı Oluşturma</h2>
+
+        <div class="step">
+            <h3><span class="step-number">1</span>Bcrypt Hash Oluştur</h3>
+            <p>Local bilgisayarında (project klasöründe):</p>
+            <pre><code>node -p "require('bcryptjs').hashSync('Kultur2025Pay!!', 10)"</code></pre>
+            <p>Çıktı örneği:</p>
+            <pre><code>$2b$10$abc123xyz789...</code></pre>
+            <p>Bu hash'i kopyala.</p>
+        </div>
+
+        <div class="step">
+            <h3><span class="step-number">2</span>PostgreSQL'e Bağlan</h3>
+            <p>Coolify → kulturpay app → <strong>Terminal</strong></p>
+            <pre><code>psql "postgresql://postgres:Thor.7485-aidat@f4gwswcwo48cww88c80s8sg8:5432/kulturpay"</code></pre>
+        </div>
+
+        <div class="step">
+            <h3><span class="step-number">3</span>Admin Kullanıcı Ekle</h3>
+            <pre><code>INSERT INTO users (id, email, password, name, phone, role, "isActive", "createdAt", "updatedAt")
+VALUES (
+  'admin-kultur-001',
+  'kulturpay@spormanage.com.tr',
+  '$2b$10$abc123xyz789...',  -- Yukarıda oluşturduğun hash
+  'Kültür Admin',
+  '+90 555 123 4567',
+  'ADMIN',
+  true,
+  NOW(),
+  NOW()
+);</code></pre>
+            <p>Başarılı olursa: <code>INSERT 0 1</code></p>
+        </div>
+
+        <div class="step">
+            <h3><span class="step-number">4</span>Kontrol Et</h3>
+            <pre><code>SELECT id, email, name, role, "isActive" 
+FROM users 
+WHERE email = 'kulturpay@spormanage.com.tr';</code></pre>
+            <p>Kullanıcıyı görmelisin.</p>
+        </div>
+
+        <div class="step">
+            <h3><span class="step-number">5</span>Çık</h3>
+            <pre><code>\q</code></pre>
+        </div>
+
+        <h2>6️⃣ Login Test</h2>
+
+        <div class="step">
+            <h3><span class="step-number">1</span>Tarayıcıda Aç</h3>
+            <p><strong>URL:</strong> https://kulturpay.spormanage.com.tr/login</p>
+        </div>
+
+        <div class="step">
+            <h3><span class="step-number">2</span>Giriş Bilgileri</h3>
+            <ul>
+                <li><strong>Email:</strong> kulturpay@spormanage.com.tr</li>
+                <li><strong>Şifre:</strong> Kultur2025Pay!!</li>
+            </ul>
+        </div>
+
+        <div class="success">
+            <strong>✅ Başarılı!</strong><br>
+            Dashboard sayfasına yönlendirilmelisin.
+        </div>
+
+        <h2>7️⃣ Müşteri Bilgileri Tablosu</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Müşteri</th>
+                    <th>Domain</th>
+                    <th>Database</th>
+                    <th>Admin Email</th>
+                    <th>Durum</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Özlüce Pay</td>
+                    <td>ozlucepay.spormanage.com.tr</td>
+                    <td>ozlucepay</td>
+                    <td>ozlucepay@spormanage.com.tr</td>
+                    <td>✅ Aktif</td>
+                </tr>
+                <tr>
+                    <td>Kültür Pay</td>
+                    <td>kulturpay.spormanage.com.tr</td>
+                    <td>kulturpay</td>
+                    <td>kulturpay@spormanage.com.tr</td>
+                    <td>📝 Kurulum aşamasında</td>
+                </tr>
+                <tr>
+                    <td>GS Pay</td>
+                    <td>gspay.spormanage.com.tr</td>
+                    <td>gspay</td>
+                    <td>gspay@spormanage.com.tr</td>
+                    <td>⏳ Beklemede</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>📋 Hızlı Referans Komutları</h2>
+
+        <h3>PostgreSQL Database Oluştur</h3>
+        <pre><code>psql -U postgres
+CREATE DATABASE yeni_musteri_db;
+\q</code></pre>
+
+        <h3>Bcrypt Hash Oluştur</h3>
+        <pre><code>node -p "require('bcryptjs').hashSync('SifreABC123!', 10)"</code></pre>
+
+        <h3>Admin Kullanıcı Ekle (Template)</h3>
+        <pre><code>psql "postgresql://postgres:Thor.7485-aidat@f4gwswcwo48cww88c80s8sg8:5432/DBNAME"
+
+INSERT INTO users (id, email, password, name, phone, role, "isActive", "createdAt", "updatedAt")
+VALUES (
+  'admin-CUSTOMER-001',
+  'email@domain.com',
+  'BCRYPT_HASH_BURAYA',
+  'Admin İsmi',
+  '+90 555 123 4567',
+  'ADMIN',
+  true,
+  NOW(),
+  NOW()
+);
+
+\q</code></pre>
+
+        <h2>🔧 Sorun Giderme</h2>
+
+        <h3>❌ Login 401 Hatası</h3>
+        <div class="info">
+            <strong>Çözüm:</strong><br>
+            1. Coolify Logs'ta <code>[LOGIN-DEBUG]</code> satırlarını kontrol et<br>
+            2. Email'in DB'de olduğunu doğrula: <code>SELECT email FROM users;</code><br>
+            3. Password hash'in doğru olduğundan emin ol
+        </div>
+
+        <h3>❌ Database Connection Error</h3>
+        <div class="info">
+            <strong>Çözüm:</strong><br>
+            1. DATABASE_URL'i kontrol et<br>
+            2. PostgreSQL hostname'in doğru olduğundan emin ol: <code>f4gwswcwo48cww88c80s8sg8</code><br>
+            3. Database'in mevcut olduğunu doğrula: <code>\l</code>
+        </div>
+
+        <h3>❌ Migration Failed: Prisma 7 Error</h3>
+        <div class="info">
+            <strong>Çözüm:</strong><br>
+            Startup script zaten <code>prisma@6.17.1</code> kullanıyor, sorun olmamalı.<br>
+            Eğer olursa Dockerfile'da düzgün kopyalandığından emin ol.
+        </div>
+
+        <div class="success">
+            <h3>🎉 Tebrikler!</h3>
+            <p>Yeni müşteri başarıyla kuruldu. Artık müşteri uygulamayı kullanmaya başlayabilir.</p>
+        </div>
+
+        <hr style="margin: 40px 0; border: none; border-top: 2px solid #e5e7eb;">
+        
+        <p style="text-align: center; color: #6b7280; font-size: 14px;">
+            <strong>Spormanage Multi-Tenant Deployment Guide</strong><br>
+            Son Güncelleme: 9 Aralık 2024<br>
+            © 2024 Spormanage - Tüm Hakları Saklıdır
+        </p>
+    </div>
+</body>
+</html>

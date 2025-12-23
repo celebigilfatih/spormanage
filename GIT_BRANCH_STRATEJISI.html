@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Branch Stratejisi - Spormanage</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #2563eb; border-bottom: 3px solid #2563eb; padding-bottom: 10px; margin-bottom: 30px; }
+        h2 { color: #1e40af; margin-top: 30px; margin-bottom: 15px; padding-left: 10px; border-left: 4px solid #3b82f6; }
+        h3 { color: #4b5563; margin-top: 20px; margin-bottom: 10px; }
+        .branch-diagram { background: #1e293b; color: #e2e8f0; padding: 30px; border-radius: 8px; margin: 20px 0; font-family: monospace; font-size: 14px; overflow-x: auto; }
+        .branch { margin: 8px 0; padding-left: 20px; }
+        .branch-main { color: #22c55e; font-weight: bold; }
+        .branch-dev { color: #3b82f6; }
+        .branch-customer { color: #f59e0b; }
+        .scenario { background: #f0f9ff; padding: 25px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #3b82f6; }
+        .scenario-title { font-size: 18px; font-weight: bold; color: #1e40af; margin-bottom: 15px; }
+        code { background: #1e293b; color: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 14px; }
+        pre { background: #1e293b; color: #e2e8f0; padding: 15px; border-radius: 6px; overflow-x: auto; margin: 10px 0; }
+        pre code { background: none; padding: 0; }
+        .warning { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 15px 0; border-radius: 4px; }
+        .success { background: #d1fae5; border-left: 4px solid #10b981; padding: 15px; margin: 15px 0; border-radius: 4px; }
+        .info { background: #dbeafe; border-left: 4px solid #3b82f6; padding: 15px; margin: 15px 0; border-radius: 4px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        table th { background: #2563eb; color: white; padding: 12px; text-align: left; }
+        table td { padding: 10px; border-bottom: 1px solid #e5e7eb; }
+        table tr:nth-child(even) { background: #f9fafb; }
+        .comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+        .comparison-item { background: #f8fafc; padding: 20px; border-radius: 8px; border: 2px solid #e2e8f0; }
+        .comparison-item h4 { color: #1e40af; margin-bottom: 10px; }
+        .pros { color: #10b981; }
+        .cons { color: #ef4444; }
+        ul { margin-left: 20px; margin-top: 10px; }
+        li { margin: 8px 0; }
+        .workflow-step { background: #f1f5f9; padding: 15px; margin: 10px 0; border-radius: 6px; border-left: 3px solid #64748b; }
+        .workflow-step strong { color: #1e40af; }
+        .command-box { background: #0f172a; color: #22c55e; padding: 20px; border-radius: 8px; margin: 15px 0; font-family: monospace; }
+        .feature-flag-example { background: #fef3c7; padding: 20px; border-radius: 8px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌳 Git Branch Stratejisi - Multi-Tenant SaaS</h1>
+        <p><strong>Spormanage için müşteriye özel özelleştirme stratejisi</strong></p>
+
+        <div class="info">
+            <strong>📌 Amaç:</strong><br>
+            ✅ Tek repository'de birden fazla müşteri yönetimi<br>
+            ✅ Local development ile production izolasyonu<br>
+            ✅ Müşteriye özel özelleştirmeleri destekleme<br>
+            ✅ Kod tekrarını minimize etme
+        </div>
+
+        <h2>1️⃣ Branch Yapısı</h2>
+
+        <div class="branch-diagram">
+<span class="branch-main">main</span> (production base - tüm müşteriler için ortak kod)
+│
+├── <span class="branch-dev">dev</span> (local development)
+│
+├── <span class="branch-customer">customer/ozluce</span> (Özlüce'ye özel)
+│
+├── <span class="branch-customer">customer/kultur</span> (Kültür'e özel)
+│
+└── <span class="branch-customer">customer/gspay</span> (GS Pay'e özel)
+        </div>
+
+        <h3>Branch Açıklamaları:</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Branch</th>
+                    <th>Amaç</th>
+                    <th>Kullanım</th>
+                    <th>Coolify Bağlantısı</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>main</code></td>
+                    <td>Ana production branch</td>
+                    <td>Tüm müşterilere ortak özellikler</td>
+                    <td>Varsayılan</td>
+                </tr>
+                <tr>
+                    <td><code>dev</code></td>
+                    <td>Local geliştirme</td>
+                    <td>Yeni özellikler test edilir</td>
+                    <td>-</td>
+                </tr>
+                <tr>
+                    <td><code>customer/ozluce</code></td>
+                    <td>Özlüce özelleştirmeleri</td>
+                    <td>Sadece Özlüce'ye özel kod</td>
+                    <td>✅ Özlüce App</td>
+                </tr>
+                <tr>
+                    <td><code>customer/kultur</code></td>
+                    <td>Kültür özelleştirmeleri</td>
+                    <td>Sadece Kültür'e özel kod</td>
+                    <td>✅ Kültür App</td>
+                </tr>
+                <tr>
+                    <td><code>customer/gspay</code></td>
+                    <td>GS Pay özelleştirmeleri</td>
+                    <td>Sadece GS Pay'e özel kod</td>
+                    <td>✅ GS Pay App</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>2️⃣ Workflow Senaryoları</h2>
+
+        <div class="scenario">
+            <div class="scenario-title">📦 Senaryo 1: Ortak Özellik Geliştirme (Tüm Müşteriler)</div>
+            
+            <p><strong>Örnek:</strong> Tüm müşterilere yeni bir rapor özelliği eklemek istiyorsun.</p>
+            
+            <div class="workflow-step">
+                <strong>Adım 1:</strong> dev branch'te geliştir
+                <pre><code>git checkout dev
+git pull origin main
+
+# Yeni özelliği geliştir
+# ...kod yaz, test et...
+
+git add .
+git commit -m "feat: yeni rapor özelliği eklendi"</code></pre>
+            </div>
+
+            <div class="workflow-step">
+                <strong>Adım 2:</strong> main'e merge et
+                <pre><code>git checkout main
+git merge dev
+git push origin main</code></pre>
+            </div>
+
+            <div class="workflow-step">
+                <strong>Adım 3:</strong> Tüm müşteri branch'lerini güncelle
+                <pre><code>git checkout customer/ozluce
+git merge main
+git push origin customer/ozluce
+
+git checkout customer/kultur
+git merge main
+git push origin customer/kultur
+
+git checkout customer/gspay
+git merge main
+git push origin customer/gspay</code></pre>
+            </div>
+
+            <div class="success">
+                <strong>✅ Sonuç:</strong> Tüm müşteriler yeni rapor özelliğini aldı. Coolify otomatik deploy yapacak.
+            </div>
+        </div>
+
+        <div class="scenario">
+            <div class="scenario-title">🎯 Senaryo 2: Özlüce'ye Özel Özellik</div>
+            
+            <p><strong>Örnek:</strong> Özlüce sadece kendi okulu için özel bir ödeme planı istiyor.</p>
+            
+            <div class="workflow-step">
+                <strong>Adım 1:</strong> Özlüce branch'ine geç
+                <pre><code>git checkout customer/ozluce</code></pre>
+            </div>
+
+            <div class="workflow-step">
+                <strong>Adım 2:</strong> Özel özelliği geliştir
+                <pre><code># Özlüce'ye özel kod yaz
+# src/app/api/payments/ozluce-special/route.ts oluştur
+
+git add .
+git commit -m "feat(ozluce): özel ödeme planı eklendi"
+git push origin customer/ozluce</code></pre>
+            </div>
+
+            <div class="success">
+                <strong>✅ Sonuç:</strong> Sadece Özlüce bu özelliği aldı. Diğer müşteriler etkilenmedi.
+            </div>
+        </div>
+
+        <div class="scenario">
+            <div class="scenario-title">🔄 Senaryo 3: Özel Özelliği Tüm Müşterilere Yaymak</div>
+            
+            <p><strong>Örnek:</strong> Özlüce için geliştirilen özellik çok başarılı oldu, diğer müşteriler de istiyor.</p>
+            
+            <div class="workflow-step">
+                <strong>Adım 1:</strong> Özlüce'deki commit'i al
+                <pre><code>git checkout main
+git log customer/ozluce  # Commit hash'i bul
+
+git cherry-pick <commit-hash>
+git push origin main</code></pre>
+            </div>
+
+            <div class="workflow-step">
+                <strong>Adım 2:</strong> Diğer müşterilere merge et
+                <pre><code>git checkout customer/kultur
+git merge main
+git push origin customer/kultur
+
+git checkout customer/gspay
+git merge main
+git push origin customer/gspay</code></pre>
+            </div>
+
+            <div class="success">
+                <strong>✅ Sonuç:</strong> Özel özellik artık tüm müşterilerde var.
+            </div>
+        </div>
+
+        <h2>3️⃣ Coolify Ayarları</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Application</th>
+                    <th>Git Repository</th>
+                    <th>Branch</th>
+                    <th>Environment Variable</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Özlüce Pay</td>
+                    <td>https://github.com/celebigilfatih/spormanage.git</td>
+                    <td><code>customer/ozluce</code></td>
+                    <td>CUSTOMER_ID=ozluce</td>
+                </tr>
+                <tr>
+                    <td>Kültür Pay</td>
+                    <td>https://github.com/celebigilfatih/spormanage.git</td>
+                    <td><code>customer/kultur</code></td>
+                    <td>CUSTOMER_ID=kultur</td>
+                </tr>
+                <tr>
+                    <td>GS Pay</td>
+                    <td>https://github.com/celebigilfatih/spormanage.git</td>
+                    <td><code>customer/gspay</code></td>
+                    <td>CUSTOMER_ID=gspay</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>4️⃣ Alternatif: Feature Flags (Önerilen)</h2>
+
+        <div class="info">
+            <strong>💡 Neden Feature Flags?</strong><br>
+            • Tek codebase, kolay bakım<br>
+            • Git conflict'leri yok<br>
+            • Environment variable ile kontrol<br>
+            • Deploy süreci basit
+        </div>
+
+        <div class="feature-flag-example">
+            <h3>Örnek Implementasyon:</h3>
+
+            <strong>1. Customer Config Oluştur:</strong>
+            <pre><code>// src/config/customer.ts
+export const getCustomerConfig = () => {
+  const customerId = process.env.CUSTOMER_ID || 'default'
+  
+  const configs = {
+    ozluce: {
+      name: 'Özlüce Futbol Okulu',
+      features: {
+        customReport: true,
+        specialPayment: false,
+        advancedStats: true,
+      },
+      theme: {
+        primaryColor: '#10b981',
+        logo: '/logos/ozluce.png',
+      },
+    },
+    kultur: {
+      name: 'Kültür Futbol Okulu',
+      features: {
+        customReport: false,
+        specialPayment: true,
+        advancedStats: false,
+      },
+      theme: {
+        primaryColor: '#f59e0b',
+        logo: '/logos/kultur.png',
+      },
+    },
+    gspay: {
+      name: 'GS Pay Futbol Okulu',
+      features: {
+        customReport: false,
+        specialPayment: false,
+        advancedStats: true,
+      },
+      theme: {
+        primaryColor: '#ef4444',
+        logo: '/logos/gspay.png',
+      },
+    },
+  }
+  
+  return configs[customerId] || configs.default
+}</code></pre>
+
+            <strong>2. Kullanım:</strong>
+            <pre><code>// src/app/reports/page.tsx
+import { getCustomerConfig } from '@/config/customer'
+
+export default function ReportsPage() {
+  const config = getCustomerConfig()
+  
+  return (
+    &lt;div&gt;
+      &lt;h1&gt;{config.name} Raporları&lt;/h1&gt;
+      
+      {config.features.customReport && (
+        &lt;CustomReportSection /&gt;
+      )}
+      
+      {config.features.advancedStats && (
+        &lt;AdvancedStatsSection /&gt;
+      )}
+    &lt;/div&gt;
+  )
+}</code></pre>
+
+            <strong>3. Coolify Environment Variables:</strong>
+            <div class="command-box">
+# Özlüce App
+CUSTOMER_ID=ozluce
+
+# Kültür App
+CUSTOMER_ID=kultur
+
+# GS Pay App
+CUSTOMER_ID=gspay
+            </div>
+        </div>
+
+        <h2>5️⃣ Karşılaştırma: Branch vs Feature Flags</h2>
+
+        <div class="comparison">
+            <div class="comparison-item">
+                <h4>🌳 Customer Branches</h4>
+                <p class="pros"><strong>Avantajları:</strong></p>
+                <ul>
+                    <li>Tam kod izolasyonu</li>
+                    <li>Müşteri-specific kod açıkça ayrı</li>
+                    <li>Bağımsız deployment</li>
+                </ul>
+                <p class="cons"><strong>Dezavantajları:</strong></p>
+                <ul>
+                    <li>Git merge conflict'leri</li>
+                    <li>Branch yönetimi zor</li>
+                    <li>Kod tekrarı artabilir</li>
+                    <li>Her müşteri için sync gerekli</li>
+                </ul>
+            </div>
+
+            <div class="comparison-item">
+                <h4>🚩 Feature Flags</h4>
+                <p class="pros"><strong>Avantajları:</strong></p>
+                <ul>
+                    <li>Tek codebase, kolay bakım</li>
+                    <li>Merge conflict yok</li>
+                    <li>Environment variable ile kontrol</li>
+                    <li>A/B testing mümkün</li>
+                </ul>
+                <p class="cons"><strong>Dezavantajları:</strong></p>
+                <ul>
+                    <li>Kod içinde if-else çoğalır</li>
+                    <li>Test karmaşıklaşabilir</li>
+                    <li>Eski feature flag'ler temizlenmeli</li>
+                </ul>
+            </div>
+        </div>
+
+        <h2>6️⃣ Öneri: Hibrit Yaklaşım</h2>
+
+        <div class="success">
+            <h3>✅ En İyi Strateji:</h3>
+            <ol>
+                <li><strong>Küçük özelleştirmeler için:</strong> Feature Flags kullan</li>
+                <li><strong>Büyük, kompleks özelleştirmeler için:</strong> Customer Branch kullan</li>
+                <li><strong>Ortak özellikler:</strong> main branch'te tut</li>
+            </ol>
+        </div>
+
+        <h3>Karar Ağacı:</h3>
+
+        <div class="workflow-step">
+            <strong>Soru 1:</strong> Bu özellik tüm müşterilere mi gerekli?
+            <ul>
+                <li>✅ Evet → <code>main</code> branch'e ekle</li>
+                <li>❌ Hayır → Soru 2'ye geç</li>
+            </ul>
+        </div>
+
+        <div class="workflow-step">
+            <strong>Soru 2:</strong> Özelleştirme basit mi (UI rengi, logo, küçük toggle)?
+            <ul>
+                <li>✅ Evet → <strong>Feature Flag</strong> kullan</li>
+                <li>❌ Hayır (kompleks iş mantığı) → <strong>Customer Branch</strong> kullan</li>
+            </ul>
+        </div>
+
+        <h2>7️⃣ Düzenli Bakım Komutları</h2>
+
+        <h3>Haftalık Sync (main → customer branches):</h3>
+        <pre><code>#!/bin/bash
+# sync-customers.sh
+
+echo "Syncing main to customer branches..."
+
+git checkout main
+git pull origin main
+
+for branch in customer/ozluce customer/kultur customer/gspay; do
+  echo "Syncing $branch..."
+  git checkout $branch
+  git merge main
+  git push origin $branch
+done
+
+git checkout main
+echo "✅ All customer branches synced!"</code></pre>
+
+        <h3>Branch Temizliği:</h3>
+        <pre><code># Eski feature branch'lerini temizle
+git branch -d feature/old-feature
+
+# Remote'ta olmayan local branch'leri sil
+git fetch --prune
+
+# Merge edilmiş branch'leri listele
+git branch --merged main</code></pre>
+
+        <h2>8️⃣ Best Practices</h2>
+
+        <div class="warning">
+            <strong>⚠️ Yapma Bunları:</strong>
+            <ul>
+                <li>❌ Müşteri branch'lerinde doğrudan geliştirme yapma</li>
+                <li>❌ main branch'e müşteriye özel kod merge etme</li>
+                <li>❌ Aynı dosyayı farklı customer branch'lerinde değiştirme</li>
+                <li>❌ Merge conflict'leri görmezden gelme</li>
+            </ul>
+        </div>
+
+        <div class="success">
+            <strong>✅ Yap Bunları:</strong>
+            <ul>
+                <li>✅ Önce dev branch'te test et</li>
+                <li>✅ Düzenli olarak main'i customer branch'lerine merge et</li>
+                <li>✅ Feature flag'leri dokümante et</li>
+                <li>✅ Commit mesajlarına müşteri adı ekle: <code>feat(ozluce): ...</code></li>
+                <li>✅ Pull request'ler ile code review yap</li>
+            </ul>
+        </div>
+
+        <h2>9️⃣ Örnek Commit Mesajları</h2>
+
+        <pre><code># Ortak özellik
+feat: yeni rapor modülü eklendi
+
+# Müşteriye özel
+feat(ozluce): özel ödeme planı eklendi
+fix(kultur): logo görüntüleme sorunu düzeltildi
+
+# Feature flag ile
+feat: özel rapor özelliği eklendi (feature flag: ENABLE_CUSTOM_REPORT)
+</code></pre>
+
+        <h2>🔟 Hızlı Referans</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Senaryo</th>
+                    <th>Branch</th>
+                    <th>Komut</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Yeni özellik geliştir</td>
+                    <td>dev</td>
+                    <td><code>git checkout dev</code></td>
+                </tr>
+                <tr>
+                    <td>Özlüce'ye özel</td>
+                    <td>customer/ozluce</td>
+                    <td><code>git checkout customer/ozluce</code></td>
+                </tr>
+                <tr>
+                    <td>Ortak özellik yayınla</td>
+                    <td>main → all</td>
+                    <td><code>./sync-customers.sh</code></td>
+                </tr>
+                <tr>
+                    <td>Özel → Ortak</td>
+                    <td>cherry-pick</td>
+                    <td><code>git cherry-pick &lt;hash&gt;</code></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <hr style="margin: 40px 0; border: none; border-top: 2px solid #e5e7eb;">
+        
+        <p style="text-align: center; color: #6b7280; font-size: 14px;">
+            <strong>Spormanage Git Branching Strategy</strong><br>
+            Son Güncelleme: 9 Aralık 2024<br>
+            © 2024 Spormanage - Tüm Hakları Saklıdır
+        </p>
+    </div>
+</body>
+</html>
