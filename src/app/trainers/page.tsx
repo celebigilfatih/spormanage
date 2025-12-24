@@ -117,6 +117,30 @@ export default function TrainersPage() {
     }
   };
 
+  const handleToggleStatus = async (trainer: Trainer) => {
+    try {
+      const response = await fetch(`/api/trainers/${trainer.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !trainer.isActive }),
+      });
+
+      if (response.ok) {
+        fetchTrainers();
+        toast({
+          title: "Başarılı",
+          description: trainer.isActive ? "Antrenör pasif yapıldı" : "Antrenör aktif yapıldı",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Hata",
+        description: "Durum değiştirilemedi",
+        variant: "destructive",
+      });
+    }
+  };
+
   const filteredTrainers = trainers.filter(trainer => {
     const search = searchTerm.toLowerCase();
     return (
@@ -302,7 +326,12 @@ export default function TrainersPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <Badge variant={trainer.isActive ? "default" : "secondary"}>
+                        <Badge 
+                          variant={trainer.isActive ? "default" : "secondary"}
+                          className="cursor-pointer hover:opacity-80"
+                          onClick={() => handleToggleStatus(trainer)}
+                          title="Tıklayarak durumu değiştirin"
+                        >
                           {trainer.isActive ? 'Aktif' : 'Pasif'}
                         </Badge>
                       </td>

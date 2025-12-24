@@ -79,3 +79,27 @@ export async function DELETE(
     );
   }
 }
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const body = await request.json();
+    const { isActive } = body;
+
+    const trainer = await prisma.trainer.update({
+      where: { id },
+      data: { isActive }
+    });
+
+    return NextResponse.json(trainer);
+  } catch (error) {
+    console.error('Error updating trainer status:', error);
+    return NextResponse.json(
+      { error: 'Failed to update trainer status' },
+      { status: 500 }
+    );
+  }
+}

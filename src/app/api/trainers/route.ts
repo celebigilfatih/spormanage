@@ -4,11 +4,17 @@ import { prisma } from '@/lib/prisma'
 export async function GET(request: NextRequest) {
   try {
     const trainers = await prisma.trainer.findMany({
-      where: { isActive: true },
       select: {
         id: true,
         name: true,
-        position: true
+        position: true,
+        experience: true,
+        license: true,
+        photo: true,
+        biography: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true
       },
       orderBy: { name: 'asc' }
     })
