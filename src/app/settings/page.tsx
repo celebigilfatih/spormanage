@@ -26,6 +26,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSettings } from '@/contexts/SettingsContext';
 
 interface SystemSettings {
   schoolName: string;
@@ -99,6 +100,7 @@ export default function SettingsPage() {
   
   const { toast } = useToast();
   const { user } = useAuth();
+  const { settings: contextSettings, updateSettings: updateContextSettings } = useSettings();
 
   // Check if user is admin
   const isAdmin = user?.role === 'ADMIN';
@@ -329,6 +331,8 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
+        // Update the context with new settings
+        updateContextSettings(settings);
         toast({
           title: "Başarılı",
           description: "Ayarlar kaydedildi",

@@ -2,6 +2,7 @@
 
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import { useSettings } from '@/contexts/SettingsContext'
 import { 
   Trophy, 
   Users, 
@@ -25,6 +26,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   const router = useRouter()
   const pathname = usePathname()
   const { user } = useAuth()
+  const { settings } = useSettings()
   const [collapsed, setCollapsed] = useState(false)
 
   const navItems = [
@@ -68,7 +70,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
               </div>
               <div>
                 <h1 className="text-lg font-bold text-gray-900">
-                  Futbol Okulu
+                  {settings.schoolName}
                 </h1>
                 <p className="text-xs text-gray-500">Yönetim Sistemi</p>
               </div>
