@@ -17,6 +17,16 @@ async function getCurrentUser(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await getCurrentUser(request)
+    console.log('[API-Students] Auth Check:', { 
+      hasUser: !!user, 
+      userEmail: user?.email,
+      cookieHeader: request.headers.get('cookie') ? 'Present' : 'Missing'
+    })
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '10')
@@ -25,31 +35,45 @@ export async function GET(request: NextRequest) {
     const branchId = searchParams.get('branchId') || ''
     const status = searchParams.get('status') || 'all'
 
+    console.log('[API-Students] GET Request:', { page, limit, status, search, groupId, branchId })
+
     const skip = (page - 1) * limit
 
-    const where: any = {}
+    const where: any = { AND: [] }
 
     if (search) {
-      where.OR = [
-        { firstName: { contains: search, mode: 'insensitive' } },
-        { lastName: { contains: search, mode: 'insensitive' } },
-        { parents: { some: { firstName: { contains: search, mode: 'insensitive' } } } },
-        { parents: { some: { lastName: { contains: search, mode: 'insensitive' } } } },
-      ]
+      where.AND.push({
+        OR: [
+          { firstName: { contains: search, mode: 'insensitive' } },
+          { lastName: { contains: search, mode: 'insensitive' } },
+          { parents: { some: { firstName: { contains: search, mode: 'insensitive' } } } },
+          { parents: { some: { lastName: { contains: search, mode: 'insensitive' } } } },
+        ]
+      })
     }
 
     if (groupId && groupId !== 'all') {
-      where.groupId = groupId
+      where.AND.push({ groupId })
     }
 
     if (branchId && branchId !== 'all') {
-      where.branchId = branchId
+      where.AND.push({
+        OR: [
+          { branchId: branchId },
+          { group: { branchId: branchId } }
+        ]
+      })
     }
 
     if (status === 'active') {
-      where.isActive = true
+      where.AND.push({ isActive: true })
     } else if (status === 'inactive') {
-      where.isActive = false
+      where.AND.push({ isActive: false })
+    }
+
+    // If AND is empty, remove it to keep query clean
+    if (where.AND.length === 0) {
+      delete where.AND
     }
 
     // Optimize query by selecting only necessary fields
@@ -66,10 +90,13 @@ export async function GET(request: NextRequest) {
           birthDate: true,
           isActive: true,
           enrollmentDate: true,
+          branchId: true,
+          groupId: true,
           group: {
             select: {
               id: true,
-              name: true
+              name: true,
+              branchId: true
             }
           },
           branch: {

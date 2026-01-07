@@ -1,222 +1,255 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { AuthService } from '@/lib/auth'
-import { AttendanceStatus } from '@/types'
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { AuthService } from '@/lib/auth';
 
 async function getCurrentUser(request: NextRequest) {
-  const token = request.cookies.get('auth-token')?.value
-  if (!token) return null
+  const token = request.cookies.get('auth-token')?.value;
+  if (!token) return null;
   
-  const payload = AuthService.verifyToken(token)
-  if (!payload) return null
+  const payload = AuthService.verifyToken(token);
+  if (!payload) return null;
   
   return await prisma.user.findUnique({
     where: { id: payload.userId }
-  })
+  });
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const sessionId = searchParams.get('sessionId')
-    const studentId = searchParams.get('studentId')
-    const status = searchParams.get('status')
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    const where: any = {}
+    const { searchParams } = new URL(request.url);
+    const sessionId = searchParams.get('sessionId');
+    const studentId = searchParams.get('studentId');
+
+    let where: any = {};
 
     if (sessionId) {
-      where.sessionId = sessionId
+      where.sessionId = sessionId;
     }
-
     if (studentId) {
-      where.studentId = studentId
-    }
-
-    if (status && status !== 'all') {
-      where.status = status
+      where.studentId = studentId;
     }
 
     const attendances = await prisma.attendance.findMany({
       where,
       include: {
-        student: {
-          include: {
-            group: true
-          }
-        },
-        session: {
-          include: {
-            training: {
-              include: {
-                group: true
-              }
-            }
-          }
-        },
-        createdBy: {
-          select: {
-            name: true
-          }
-        }
+        student: true,
+        session: true,
+        markedByUser: true
       },
-      orderBy: [
-        { session: { date: 'desc' } },
-        { student: { lastName: 'asc' } }
-      ]
-    })
+      orderBy: { createdAt: 'desc' }
+    });
 
-    return NextResponse.json(attendances)
+    return NextResponse.json(attendances);
   } catch (error) {
-    console.error('Failed to fetch attendances:', error)
+    console.error('Failed to fetch attendances:', error);
     return NextResponse.json(
       { error: 'Failed to fetch attendances' },
       { status: 500 }
-    )
+    );
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await getCurrentUser(request)
+    const user = await getCurrentUser(request);
     if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!AuthService.canManageTraining(user.role as any)) {
-      return NextResponse.json(
-        { error: 'Insufficient permissions' },
-        { status: 403 }
-      )
-    }
+    const data = await request.json();
+    const { action } = data;
 
-    const data = await request.json()
-    
-    // Handle bulk attendance creation
-    if (Array.isArray(data)) {
-      const attendances = await prisma.$transaction(
-        data.map((attendance: any) =>
-          prisma.attendance.upsert({
-            where: {
-              studentId_sessionId: {
-                studentId: attendance.studentId,
-                sessionId: attendance.sessionId
-              }
-            },
-            update: {
-              status: attendance.status,
-              notes: attendance.notes,
-              excuseReason: attendance.excuseReason,
-              createdById: user.id
-            },
-            create: {
-              studentId: attendance.studentId,
-              sessionId: attendance.sessionId,
-              status: attendance.status,
-              notes: attendance.notes,
-              excuseReason: attendance.excuseReason,
-              createdById: user.id
-            },
-            include: {
-              student: true,
-              session: {
-                include: {
-                  training: true
-                }
-              }
+    if (action === 'mark_attendance') {
+      const { sessionId, attendance } = data;
+
+      if (!sessionId || !attendance || !Array.isArray(attendance)) {
+        return NextResponse.json(
+          { error: 'Missing required fields' },
+          { status: 400 }
+        );
+      }
+
+      const session = await prisma.trainingSession.findUnique({
+        where: { id: sessionId }
+      });
+
+      if (!session) {
+        return NextResponse.json(
+          { error: 'Training session not found' },
+          { status: 404 }
+        );
+      }
+
+      await prisma.trainingSession.update({
+        where: { id: sessionId },
+        data: {
+          status: 'COMPLETED',
+          attendanceTaken: true,
+          attendanceTakenAt: new Date()
+        }
+      });
+
+      const results = [];
+      for (const record of attendance) {
+        const { studentId, status, notes } = record;
+        
+        const attendanceRecord = await prisma.attendance.upsert({
+          where: {
+            sessionId_studentId: {
+              sessionId: sessionId,
+              studentId: studentId
             }
-          })
-        )
-      )
+          },
+          update: {
+            status: status,
+            notes: notes || null,
+            markedBy: user.id,
+            markedAt: new Date()
+          },
+          create: {
+            sessionId: sessionId,
+            studentId: studentId,
+            status: status,
+            notes: notes || null,
+            markedBy: user.id,
+            markedAt: new Date()
+          }
+        });
+        
+        results.push(attendanceRecord);
+      }
+
+      // Trigger analytics update (fire and forget)
+      updateAttendanceAnalytics(sessionId);
 
       return NextResponse.json({
-        message: `Successfully recorded attendance for ${attendances.length} students`,
-        attendances
-      }, { status: 201 })
+        success: true,
+        marked: results.length
+      });
     }
 
-    // Handle single attendance creation
-    const { studentId, sessionId, status, notes, excuseReason } = data
+    return NextResponse.json(
+      { error: 'Invalid action' },
+      { status: 400 }
+    );
+  } catch (error) {
+    console.error('Failed to process attendance:', error);
+    return NextResponse.json(
+      { error: 'Failed to process attendance' },
+      { status: 500 }
+    );
+  }
+}
 
-    if (!studentId || !sessionId || !status) {
-      return NextResponse.json(
-        { error: 'Student, session, and status are required' },
-        { status: 400 }
-      )
-    }
-
-    // Verify student and session exist
-    const [student, session] = await Promise.all([
-      prisma.student.findUnique({ where: { id: studentId } }),
-      prisma.trainingSession.findUnique({ where: { id: sessionId } })
-    ])
-
-    if (!student) {
-      return NextResponse.json(
-        { error: 'Student not found' },
-        { status: 404 }
-      )
-    }
-
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Training session not found' },
-        { status: 404 }
-      )
-    }
-
-    const attendance = await prisma.attendance.upsert({
-      where: {
-        studentId_sessionId: {
-          studentId,
-          sessionId
-        }
-      },
-      update: {
-        status,
-        notes,
-        excuseReason,
-        createdById: user.id
-      },
-      create: {
-        studentId,
-        sessionId,
-        status,
-        notes,
-        excuseReason,
-        createdById: user.id
-      },
+async function updateAttendanceAnalytics(sessionId: string) {
+  try {
+    const session = await prisma.trainingSession.findUnique({
+      where: { id: sessionId },
       include: {
-        student: {
-          include: {
-            group: true
-          }
-        },
-        session: {
-          include: {
-            training: {
-              include: {
-                group: true
-              }
-            }
-          }
-        },
-        createdBy: {
-          select: {
-            name: true
-          }
+        attendances: true,
+        group: {
+          include: { students: true }
         }
       }
-    })
+    });
 
-    return NextResponse.json(attendance, { status: 201 })
+    if (!session) return;
+
+    const studentIds = session.group.students.map(s => s.id);
+
+    const month = session.date.getMonth() + 1;
+    const year = session.date.getFullYear();
+    const startOfMonth = new Date(year, month - 1, 1);
+    const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999);
+
+    const monthlyAttendances = await prisma.attendance.findMany({
+      where: {
+        studentId: { in: studentIds },
+        session: {
+          date: { gte: startOfMonth, lte: endOfMonth }
+        }
+      },
+      include: { session: true }
+    });
+
+    const studentAttendanceMap = new Map<string, any[]>();
+    monthlyAttendances.forEach(att => {
+      if (!studentAttendanceMap.has(att.studentId)) {
+        studentAttendanceMap.set(att.studentId, []);
+      }
+      studentAttendanceMap.get(att.studentId)!.push(att);
+    });
+
+    const studentEntries = Array.from(studentAttendanceMap.entries());
+    for (const [studentId, attendances] of studentEntries) {
+      const totalSessions = attendances.length;
+      const presentCount = attendances.filter(a => a.status === 'PRESENT').length;
+      const absentCount = attendances.filter(a => a.status === 'ABSENT').length;
+      const lateCount = attendances.filter(a => a.status === 'LATE').length;
+      const excusedCount = attendances.filter(a => a.status === 'EXCUSED').length;
+      
+      const attendancePercentage = totalSessions > 0 
+        ? ((presentCount + excusedCount) / totalSessions) * 100 
+        : 0;
+
+      let consecutiveAbsences = 0;
+      const recentSessions = await prisma.trainingSession.findMany({
+        where: {
+          groupId: session.groupId,
+          date: { lte: session.date },
+          status: 'COMPLETED'
+        },
+        orderBy: { date: 'desc' },
+        take: 10
+      });
+
+      for (const recentSession of recentSessions) {
+        const recentAttendance = attendances.find(a => a.sessionId === recentSession.id);
+        if (recentAttendance && recentAttendance.status === 'ABSENT') {
+          consecutiveAbsences++;
+        } else if (recentAttendance) {
+          break;
+        }
+      }
+
+      const hasWarning = consecutiveAbsences >= 3;
+
+      await prisma.attendanceAnalytics.upsert({
+        where: {
+          studentId_month_year: { studentId, month, year }
+        },
+        update: {
+          totalSessions,
+          presentCount,
+          absentCount,
+          lateCount,
+          excusedCount,
+          attendancePercentage,
+          consecutiveAbsences,
+          hasWarning,
+          updatedAt: new Date()
+        },
+        create: {
+          studentId,
+          month,
+          year,
+          totalSessions,
+          presentCount,
+          absentCount,
+          lateCount,
+          excusedCount,
+          attendancePercentage,
+          consecutiveAbsences,
+          hasWarning
+        }
+      });
+    }
   } catch (error) {
-    console.error('Failed to record attendance:', error)
-    return NextResponse.json(
-      { error: 'Failed to record attendance' },
-      { status: 500 }
-    )
+    console.error('Failed to update analytics:', error);
   }
 }

@@ -99,6 +99,7 @@ export default function PaymentsPage() {
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [groupByPlan, setGroupByPlan] = useState(true) // New state for grouping
+  const [mounted, setMounted] = useState(false)
   
   // Receipt state
   const [showReceipt, setShowReceipt] = useState(false)
@@ -144,6 +145,10 @@ export default function PaymentsPage() {
 
     return result
   }
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Debounced search
   useEffect(() => {
@@ -531,6 +536,7 @@ export default function PaymentsPage() {
   }
 
   const formatCurrency = (amount: number) => {
+    if (!mounted) return `${amount.toFixed(2)} ₺`;
     return new Intl.NumberFormat('tr-TR', {
       style: 'decimal',
       minimumFractionDigits: 2,
@@ -538,7 +544,17 @@ export default function PaymentsPage() {
     }).format(amount) + ' ₺'
   }
 
+  const formatDate = (date: string | Date) => {
+    if (!mounted) return '...';
+    try {
+      return new Date(date).toLocaleDateString('tr-TR')
+    } catch (e) {
+      return '...'
+    }
+  }
+
   const getCurrentMonthName = () => {
+    if (!mounted) return 'Bu Ay';
     const now = new Date()
     return now.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })
   }
@@ -1146,7 +1162,7 @@ export default function PaymentsPage() {
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="flex items-center space-x-2">
                                   <div className="text-sm text-gray-900">
-                                    {new Date(payment.dueDate).toLocaleDateString('tr-TR')}
+                                    {formatDate(payment.dueDate)}
                                   </div>
                                   {isOverdue(payment) && (
                                     <AlertTriangle className="h-4 w-4 text-red-500" />

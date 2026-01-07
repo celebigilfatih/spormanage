@@ -126,18 +126,69 @@ export interface Group {
   coachId?: string
   assistantCoachId?: string
   branchId?: string
+  trainingDays: string[]
+  trainingStartTime?: string
+  trainingEndTime?: string
+  trainingType?: string
+  fieldId?: string
+  locationId?: string
   isActive: boolean
   createdAt: Date
   updatedAt: Date
-  coach?: any // Trainer interface
-  assistantCoach?: any // Trainer interface
+  coach?: Trainer
+  assistantCoach?: Trainer
   branch?: Branch
+  field?: Field
+  location?: Location
   students?: Student[]
   feeTypes?: FeeType[]
   trainings?: Training[]
   _count?: {
     students: number
   }
+}
+
+export interface Trainer {
+  id: string
+  name: string
+  position: string
+  experience: number
+  license?: string
+  photo?: string
+  biography?: string
+  isActive: boolean
+  createdAt: Date
+  updatedAt: Date
+  groupsAsCoach?: Group[]
+  groupsAsAssistant?: Group[]
+}
+
+export interface Field {
+  id: string
+  branchId?: string
+  name: string
+  capacity?: number
+  location?: string
+  isActive: boolean
+  createdAt: Date
+  updatedAt: Date
+  branch?: Branch
+  groups?: Group[]
+}
+
+export interface Location {
+  id: string
+  branchId?: string
+  name: string
+  address?: string
+  city?: string
+  district?: string
+  phone?: string
+  isActive: boolean
+  createdAt: Date
+  updatedAt: Date
+  branch?: Branch
+  groups?: Group[]
 }
 
 export interface FeeType {

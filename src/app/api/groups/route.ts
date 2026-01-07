@@ -13,6 +13,12 @@ export async function GET() {
         branchId: true,
         coachId: true,
         assistantCoachId: true,
+        trainingDays: true,
+        trainingStartTime: true,
+        trainingEndTime: true,
+        trainingType: true,
+        fieldId: true,
+        locationId: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,
@@ -36,6 +42,18 @@ export async function GET() {
             name: true
           }
         },
+        field: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        location: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
         _count: {
           select: { students: true }
         }
@@ -54,7 +72,19 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, description, coachId, assistantCoachId, branchId } = await request.json()
+    const { 
+      name, 
+      description, 
+      coachId, 
+      assistantCoachId, 
+      branchId,
+      trainingDays,
+      trainingStartTime,
+      trainingEndTime,
+      trainingType,
+      fieldId,
+      locationId
+    } = await request.json()
 
     if (!name) {
       return NextResponse.json(
@@ -88,6 +118,12 @@ export async function POST(request: NextRequest) {
         coachId: coachId || null,
         assistantCoachId: assistantCoachId || null,
         branchId: branchId || null,
+        trainingDays: trainingDays || [],
+        trainingStartTime: trainingStartTime || null,
+        trainingEndTime: trainingEndTime || null,
+        trainingType: trainingType || null,
+        fieldId: fieldId || null,
+        locationId: locationId || null,
       },
       include: {
         coach: {
@@ -105,6 +141,18 @@ export async function POST(request: NextRequest) {
           }
         },
         branch: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        field: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        location: {
           select: {
             id: true,
             name: true

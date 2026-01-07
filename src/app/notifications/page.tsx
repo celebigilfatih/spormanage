@@ -85,6 +85,12 @@ export default function NotificationsPage() {
   const [selectedNotifications, setSelectedNotifications] = useState<string[]>([]);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingNotification, setEditingNotification] = useState<Notification | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [filters, setFilters] = useState({
     type: 'all',
     status: 'all',
@@ -704,20 +710,20 @@ export default function NotificationsPage() {
                       
                       <div className="flex items-center gap-1">
                         <Calendar className="w-4 h-4" />
-                        {format(new Date(notification.createdAt), 'dd MMM yyyy HH:mm', { locale: tr })}
+                        {mounted ? format(new Date(notification.createdAt), 'dd MMM yyyy HH:mm', { locale: tr }) : '...'}
                       </div>
                       
                       {notification.scheduledAt && (
                         <div className="flex items-center gap-1">
                           <Clock className="w-4 h-4" />
-                          Zamanlandı: {format(new Date(notification.scheduledAt), 'dd MMM yyyy HH:mm', { locale: tr })}
+                          Zamanlandı: {mounted ? format(new Date(notification.scheduledAt), 'dd MMM yyyy HH:mm', { locale: tr }) : '...'}
                         </div>
                       )}
                       
                       {notification.sentAt && (
                         <div className="flex items-center gap-1">
                           <Send className="w-4 h-4" />
-                          Gönderildi: {format(new Date(notification.sentAt), 'dd MMM yyyy HH:mm', { locale: tr })}
+                          Gönderildi: {mounted ? format(new Date(notification.sentAt), 'dd MMM yyyy HH:mm', { locale: tr }) : '...'}
                         </div>
                       )}
                     </div>

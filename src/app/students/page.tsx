@@ -8,10 +8,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { Plus, Search, Users, Phone, Mail, Calendar, MapPin, Eye, Edit2, Trash2, Power } from 'lucide-react'
+import { Plus, Search, Users, Phone, Mail, Calendar, MapPin, Eye, Edit2, Trash2, Power, Printer } from 'lucide-react'
 import { Student, Group, StudentFormData, UserRole } from '@/types'
 import { AuthService } from '@/lib/auth'
 import { useToast } from '@/hooks/use-toast'
+import { StudentPrintForm } from '@/components/StudentPrintForm'
 
 export default function StudentsPage() {
   const { user } = useAuth()
@@ -23,6 +24,7 @@ export default function StudentsPage() {
   const [showRegistrationForm, setShowRegistrationForm] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showPrintForm, setShowPrintForm] = useState(false)
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   
@@ -615,8 +617,20 @@ export default function StudentsPage() {
                               variant="outline" 
                               size="sm"
                               onClick={() => handleViewDetails(student)}
+                              title="Detayları Görüntüle"
                             >
                               <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                setSelectedStudent(student)
+                                setShowPrintForm(true)
+                              }}
+                              title="Yazdır"
+                            >
+                              <Printer className="h-4 w-4" />
                             </Button>
                             {canManageStudents && (
                               <>
@@ -1005,6 +1019,17 @@ export default function StudentsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Student Print Form Modal */}
+      {showPrintForm && selectedStudent && (
+        <StudentPrintForm
+          student={selectedStudent}
+          onClose={() => {
+            setShowPrintForm(false)
+            setSelectedStudent(null)
+          }}
+        />
+      )}
 
       {/* Student Edit Modal - Removed, now using form */}
     </AppLayout>

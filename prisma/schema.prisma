@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,53 +8,51 @@ datasource db {
 }
 
 model User {
-  id          String   @id @default(cuid())
-  email       String   @unique
-  password    String
-  name        String
-  phone       String?
-  role        UserRole @default(SECRETARY)
-  trainerId   String?  // If role is TRAINER, link to Trainer
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  // Relations
-  trainer             Trainer?      @relation(fields: [trainerId], references: [id])
-  createdStudents     Student[]     @relation("StudentCreator")
-  createdPayments     Payment[]     @relation("PaymentCreator")
-  createdNotes        Note[]        @relation("NoteCreator")
-  createdAttendances  Attendance[]  @relation("AttendanceCreator")
-  sentNotifications   Notification[] @relation("NotificationSender")
+  id                String         @id @default(cuid())
+  email             String         @unique
+  password          String
+  name              String
+  phone             String?
+  role              UserRole       @default(SECRETARY)
+  isActive          Boolean        @default(true)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  trainerId         String?
+  createdNotes      Note[]         @relation("NoteCreator")
+  sentNotifications Notification[] @relation("NotificationSender")
+  createdPayments   Payment[]      @relation("PaymentCreator")
+  createdStudents   Student[]      @relation("StudentCreator")
+  trainer           Trainer?       @relation(fields: [trainerId], references: [id])
+  markedAttendances Attendance[]   @relation("AttendanceMarker")
+  createdExceptions TrainingException[] @relation("ExceptionCreator")
 
   @@map("users")
 }
 
 model Student {
-  id            String      @id @default(cuid())
-  firstName     String
-  lastName      String
-  phone         String?
-  birthDate     DateTime?
-  groupId       String?
-  branchId      String?     // Şube/Branş ilişkisi
-  isActive      Boolean     @default(true)
-  enrollmentDate DateTime   @default(now())
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  createdById   String
-  
-  // Relations
-  group         Group?      @relation(fields: [groupId], references: [id])
-  branch        Branch?     @relation(fields: [branchId], references: [id])
-  createdBy     User        @relation("StudentCreator", fields: [createdById], references: [id])
-  parents       Parent[]    @relation("StudentParents")
-  payments      Payment[]
-  notes         Note[]
-  attendances   Attendance[]
-  notifications Notification[]
+  id             String         @id @default(cuid())
+  firstName      String
+  lastName       String
+  phone          String?
+  birthDate      DateTime?
+  groupId        String?
+  isActive       Boolean        @default(true)
+  enrollmentDate DateTime       @default(now())
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  createdById    String
+  branchId       String?
+  attendances    Attendance[]
   groupHistories GroupHistory[]
-  
+  notes          Note[]
+  notifications  Notification[]
+  payments       Payment[]
+  branch         Branch?        @relation(fields: [branchId], references: [id])
+  createdBy      User           @relation("StudentCreator", fields: [createdById], references: [id])
+  group          Group?         @relation(fields: [groupId], references: [id])
+  parents        Parent[]       @relation("StudentParents")
+  attendanceAnalytics AttendanceAnalytics[]
+
   @@index([groupId, isActive])
   @@index([branchId, isActive])
   @@index([lastName, firstName])
@@ -66,82 +61,90 @@ model Student {
 }
 
 model Parent {
-  id            String   @id @default(cuid())
-  firstName     String
-  lastName      String
-  phone         String
-  email         String?
-  address       String?
-  relationship  String   // anne, baba, abla, etc.
-  isEmergency   Boolean  @default(false)
-  isPrimary     Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  // Relations
-  students      Student[] @relation("StudentParents")
-  
+  id           String    @id @default(cuid())
+  firstName    String
+  lastName     String
+  phone        String
+  email        String?
+  address      String?
+  relationship String
+  isEmergency  Boolean   @default(false)
+  isPrimary    Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  students     Student[] @relation("StudentParents")
+
   @@map("parents")
 }
 
 model Group {
-  id          String    @id @default(cuid())
-  name        String    @unique // U10, U12, Başlangıç, İleri
-  description String?
-  coachId     String?   // Ana antrenör
-  assistantCoachId String? // Yardımcı antrenör
-  branchId    String?   // Şube/Branch
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id                  String    @id @default(cuid())
+  name                String    @unique // U10, U12, Başlangıç, İleri
+  description         String?
+  coachId             String?   // Ana antrenör
+  assistantCoachId    String?   // Yardımcı antrenör
+  branchId            String?   // Şube/Branch
+  
+  // Training Template Fields (NEW)
+  trainingDays        String[]  @default([])     // ["Monday", "Wednesday", "Friday"]
+  trainingStartTime   String?                    // "09:00"
+  trainingEndTime     String?                    // "10:30"
+  trainingType        String?                    // "Technical", "Tactical", "Conditioning", "Match Day", "Recovery"
+  fieldId             String?
+  locationId          String?
+  
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
   
   // Relations
-  coach       Trainer?  @relation("GroupCoach", fields: [coachId], references: [id])
-  assistantCoach Trainer? @relation("GroupAssistantCoach", fields: [assistantCoachId], references: [id])
-  branch      Branch?   @relation(fields: [branchId], references: [id])
-  students    Student[]
-  feeTypes    FeeType[]
-  trainings   Training[]
-  groupHistories GroupHistory[]
+  coach               Trainer?  @relation("GroupCoach", fields: [coachId], references: [id])
+  assistantCoach      Trainer?  @relation("GroupAssistantCoach", fields: [assistantCoachId], references: [id])
+  branch              Branch?   @relation(fields: [branchId], references: [id])
+  field               Field?    @relation(fields: [fieldId], references: [id])
+  location            Location? @relation(fields: [locationId], references: [id])
+  
+  students            Student[]
+  feeTypes            FeeType[]
+  trainings           Training[]
+  trainingSessions    TrainingSession[]
+  trainingExceptions  TrainingException[]
+  groupHistories      GroupHistory[]
   
   @@map("groups")
 }
 
 model GroupHistory {
-  id          String   @id @default(cuid())
-  studentId   String
-  groupId     String
-  startDate   DateTime @default(now())
-  endDate     DateTime?
-  reason      String?
-  createdAt   DateTime @default(now())
-  
-  // Relations
-  student     Student  @relation(fields: [studentId], references: [id])
-  group       Group    @relation(fields: [groupId], references: [id])
-  
+  id        String    @id @default(cuid())
+  studentId String
+  groupId   String
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+  reason    String?
+  createdAt DateTime  @default(now())
+  group     Group     @relation(fields: [groupId], references: [id])
+  student   Student   @relation(fields: [studentId], references: [id])
+
   @@map("group_histories")
 }
 
 model FeeType {
-  id          String     @id @default(cuid())
-  name        String     // Aylık Aidat, Dönem Ücreti, Kayıt Ücreti
-  amount      Float
-  period      FeePeriod  @default(MONTHLY)
-  groupId     String?
-  isActive    Boolean    @default(true)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  
-  // Relations
-  group       Group?     @relation(fields: [groupId], references: [id])
-  payments    Payment[]
-  
+  id        String    @id @default(cuid())
+  name      String
+  amount    Float
+  period    FeePeriod @default(MONTHLY)
+  groupId   String?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  group     Group?    @relation(fields: [groupId], references: [id])
+  payments  Payment[]
+
   @@map("fee_types")
 }
 
 model Payment {
-  id              String        @id @default(cuid())
+  id              String         @id @default(cuid())
   studentId       String
   feeTypeId       String
   amount          Float
@@ -149,19 +152,17 @@ model Payment {
   paidDate        DateTime?
   paidAmount      Float?
   paymentMethod   PaymentMethod?
-  status          PaymentStatus @default(PENDING)
+  status          PaymentStatus  @default(PENDING)
   referenceNumber String?
   notes           String?
-  receiptUrl      String?       // PDF makbuz URL'i
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  receiptUrl      String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
   createdById     String
-  
-  // Relations
-  student         Student       @relation(fields: [studentId], references: [id])
-  feeType         FeeType       @relation(fields: [feeTypeId], references: [id])
-  createdBy       User          @relation("PaymentCreator", fields: [createdById], references: [id])
-  
+  createdBy       User           @relation("PaymentCreator", fields: [createdById], references: [id])
+  feeType         FeeType        @relation(fields: [feeTypeId], references: [id])
+  student         Student        @relation(fields: [studentId], references: [id])
+
   @@index([studentId, status])
   @@index([dueDate, status])
   @@index([status])
@@ -169,21 +170,19 @@ model Payment {
 }
 
 model Note {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   studentId   String
   title       String
   content     String
-  type        NoteType  @default(GENERAL)
-  isPinned    Boolean   @default(false)
-  isImportant Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  type        NoteType @default(GENERAL)
+  isPinned    Boolean  @default(false)
+  isImportant Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   createdById String
-  
-  // Relations
-  student     Student   @relation(fields: [studentId], references: [id])
-  createdBy   User      @relation("NoteCreator", fields: [createdById], references: [id])
-  
+  createdBy   User     @relation("NoteCreator", fields: [createdById], references: [id])
+  student     Student  @relation(fields: [studentId], references: [id])
+
   @@map("notes")
 }
 
@@ -198,27 +197,38 @@ model Training {
   
   // Relations
   group       Group    @relation(fields: [groupId], references: [id])
-  sessions    TrainingSession[]
   
   @@map("trainings")
 }
 
 model TrainingSession {
-  id          String   @id @default(cuid())
-  trainingId  String
-  date        DateTime
-  startTime   DateTime
-  endTime     DateTime
-  location    String?
-  notes       String?
-  isCancelled Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                      String                  @id @default(cuid())
+  groupId                 String
+  date                    DateTime
+  startTime               String
+  endTime                 String
+  fieldId                 String?
+  locationId              String?
+  status                  TrainingSessionStatus   @default(PLANNED)
+  
+  attendanceTaken         Boolean                 @default(false)
+  attendanceTakenAt       DateTime?
+  exceptionId             String?
+  
+  generatedAutomatically  Boolean                 @default(true)
+  
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
   
   // Relations
-  training    Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
-  attendances Attendance[]
+  group                   Group                   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  field                   Field?                  @relation(fields: [fieldId], references: [id])
+  location                Location?               @relation(fields: [locationId], references: [id])
+  exception               TrainingException?      @relation(fields: [exceptionId], references: [id])
+  attendances             Attendance[]
   
+  @@index([groupId, date])
+  @@index([date, status])
   @@map("training_sessions")
 }
 
@@ -227,41 +237,44 @@ model Attendance {
   studentId   String
   sessionId   String
   status      AttendanceStatus @default(PRESENT)
+  
+  markedBy    String?
+  markedAt    DateTime?
   notes       String?
   excuseReason String?
+  
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
-  createdById String
   
   // Relations
-  student     Student   @relation(fields: [studentId], references: [id])
-  session     TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  createdBy   User      @relation("AttendanceCreator", fields: [createdById], references: [id])
+  student     Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  session     TrainingSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  markedByUser User?           @relation("AttendanceMarker", fields: [markedBy], references: [id])
   
-  @@unique([studentId, sessionId])
+  @@unique([sessionId, studentId])
+  @@index([sessionId])
+  @@index([studentId])
   @@map("attendances")
 }
 
 model Notification {
-  id          String             @id @default(cuid())
-  studentId   String?
-  title       String
-  message     String
-  type        NotificationType
-  method      NotificationMethod
-  status      NotificationStatus @default(PENDING)
-  scheduledAt DateTime?
-  sentAt      DateTime?
+  id             String             @id @default(cuid())
+  studentId      String?
+  title          String
+  message        String
+  type           NotificationType
+  method         NotificationMethod
+  status         NotificationStatus @default(PENDING)
+  scheduledAt    DateTime?
+  sentAt         DateTime?
   recipientEmail String?
   recipientPhone String?
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-  createdById String
-  
-  // Relations
-  student     Student?  @relation(fields: [studentId], references: [id])
-  createdBy   User      @relation("NotificationSender", fields: [createdById], references: [id])
-  
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  createdById    String
+  createdBy      User               @relation("NotificationSender", fields: [createdById], references: [id])
+  student        Student?           @relation(fields: [studentId], references: [id])
+
   @@index([method, status, createdAt])
   @@index([createdAt])
   @@index([studentId])
@@ -269,44 +282,141 @@ model Notification {
 }
 
 model Trainer {
-  id          String   @id @default(cuid())
-  name        String
-  position    String   // Teknik Direktör, Antrenör, Kaleci Antrenörü, vb.
-  experience  Int      // Yıl olarak deneyim
-  license     String?  // UEFA PRO, UEFA A, vb.
-  photo       String?  // Fotoğraf URL'i
-  biography   String?  // Biyografi
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  // Relations
-  user                 User[]  @relation() // Users linked to this trainer
-  groupsAsCoach        Group[] @relation("GroupCoach")
-  groupsAsAssistant    Group[] @relation("GroupAssistantCoach")
-  
+  id                String   @id @default(cuid())
+  name              String
+  position          String
+  experience        Int
+  license           String?
+  photo             String?
+  biography         String?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  groupsAsAssistant Group[]  @relation("GroupAssistantCoach")
+  groupsAsCoach     Group[]  @relation("GroupCoach")
+  user              User[]
+
   @@map("trainers")
 }
 
 model Branch {
   id          String    @id @default(cuid())
-  name        String    @unique // Merkez Şube, Anadolu Şubesi, Avrupa Şubesi
+  name        String    @unique
   address     String?
   phone       String?
   email       String?
-  managerName String?   // Şube Müdürü
+  managerName String?
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  
-  // Relations
-  students    Student[]
   groups      Group[]
+  students    Student[]
+  fields      Field[]
+  locations   Location[]
   
   @@map("branches")
 }
 
-// Enums
+// NEW: TrainingException model
+model TrainingException {
+  id                String        @id @default(cuid())
+  groupId           String
+  date              DateTime
+  
+  type              ExceptionType
+  
+  newStartTime      String?  // Only for TIME_CHANGE
+  newEndTime        String?  // Only for TIME_CHANGE
+  newFieldId        String?  // Only for FIELD_CHANGE
+  newLocationId     String?  // Only for LOCATION_CHANGE
+  
+  reason            String?  // "Weather", "Coach sick", "Facility unavailable", etc.
+  createdBy         String   // User ID
+  
+  createdAt         DateTime      @default(now())
+  
+  // Relations
+  group             Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  field             Field?        @relation(fields: [newFieldId], references: [id])
+  location          Location?     @relation(fields: [newLocationId], references: [id])
+  createdByUser     User          @relation("ExceptionCreator", fields: [createdBy], references: [id])
+  sessions          TrainingSession[]
+  
+  @@unique([groupId, date]) // Only one exception per day per group
+  @@map("training_exceptions")
+}
+
+// NEW: Field model
+model Field {
+  id        String    @id @default(cuid())
+  branchId  String?
+  name      String
+  capacity  Int?
+  location  String?  // GPS coordinates or address
+  isActive  Boolean   @default(true)
+  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  // Relations
+  branch              Branch?             @relation(fields: [branchId], references: [id])
+  trainingSessions    TrainingSession[]
+  trainingExceptions  TrainingException[]
+  groups              Group[]
+  
+  @@map("fields")
+}
+
+// NEW: Location model
+model Location {
+  id        String    @id @default(cuid())
+  branchId  String?
+  name      String
+  address   String?
+  city      String?
+  district  String?
+  phone     String?
+  isActive  Boolean   @default(true)
+  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  // Relations
+  branch              Branch?             @relation(fields: [branchId], references: [id])
+  trainingSessions    TrainingSession[]
+  trainingExceptions  TrainingException[]
+  groups              Group[]
+  
+  @@map("locations")
+}
+
+// NEW: AttendanceAnalytics model
+model AttendanceAnalytics {
+  id                    String  @id @default(cuid())
+  studentId             String
+  month                 Int     // 1-12
+  year                  Int     // 2026
+  
+  totalSessions         Int     @default(0)
+  presentCount          Int     @default(0)
+  absentCount           Int     @default(0)
+  lateCount             Int     @default(0)
+  excusedCount          Int     @default(0)
+  attendancePercentage  Float   @default(0)
+  
+  consecutiveAbsences   Int     @default(0)
+  hasWarning            Boolean @default(false)
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  // Relations
+  student               Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  @@unique([studentId, month, year])
+  @@map("attendance_analytics")
+}
+
 enum UserRole {
   ADMIN
   ACCOUNTING
@@ -314,12 +424,26 @@ enum UserRole {
   SECRETARY
 }
 
+enum TrainingSessionStatus {
+  PLANNED
+  COMPLETED
+  CANCELLED
+}
+
+enum ExceptionType {
+  CANCELLED
+  TIME_CHANGE
+  FIELD_CHANGE
+  LOCATION_CHANGE
+  EXTRA_SESSION
+}
+
 enum FeePeriod {
   MONTHLY
   QUARTERLY
-  SEMI_ANNUAL
   YEARLY
   ONE_TIME
+  SEMI_ANNUAL
 }
 
 enum PaymentMethod {

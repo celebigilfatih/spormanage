@@ -40,6 +40,11 @@ export default function NotesPage() {
   const [showNoteForm, setShowNoteForm] = useState(false)
   const [editingNote, setEditingNote] = useState<Note | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  
+  useEffect(() => {
+    setMounted(true)
+  }, [])
   
   // Filters
   const [searchTerm, setSearchTerm] = useState('')
@@ -382,7 +387,7 @@ export default function NotesPage() {
                         </div>
                         <div className="flex items-center">
                           <Calendar className="h-4 w-4 mr-1" />
-                          {new Date(note.createdAt).toLocaleDateString()}
+                          {mounted ? new Date(note.createdAt).toLocaleDateString() : '...'}
                         </div>
                         <div>
                           By: {note.createdBy?.name}

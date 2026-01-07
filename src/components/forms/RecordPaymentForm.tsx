@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Payment, PaymentMethod } from '@/types'
+import { useState, useEffect } from 'react'
 
 const recordPaymentSchema = z.object({
   paidAmount: z.string().min(1, 'Ödeme tutarı zorunludur'),
@@ -33,6 +34,11 @@ export function RecordPaymentForm({
   isLoading = false
 }: RecordPaymentFormProps) {
   const remainingAmount = payment.amount - (payment.paidAmount || 0)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const {
     register,
@@ -45,14 +51,22 @@ export function RecordPaymentForm({
     defaultValues: {
       paidAmount: remainingAmount.toString(),
       paymentMethod: PaymentMethod.CASH,
-      paidDate: new Date().toISOString().split('T')[0],
+      paidDate: '',
       notes: ''
     }
   })
 
+  // Set default paid date only after mounting to avoid hydration mismatch
+  useEffect(() => {
+    if (mounted && !watch('paidDate')) {
+      setValue('paidDate', new Date().toISOString().split('T')[0])
+    }
+  }, [mounted, setValue, watch])
+
   const paymentMethod = watch('paymentMethod')
 
   const formatCurrency = (amount: number) => {
+    if (!mounted) return `${amount} TL`;
     return new Intl.NumberFormat('tr-TR', {
       style: 'currency',
       currency: 'TRY'

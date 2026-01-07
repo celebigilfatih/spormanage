@@ -58,6 +58,31 @@ async function main() {
     }
   }
 
+  // Create default fields (Sahalar)
+  const defaultFields = [
+    { id: 'Saha 1', name: 'Saha 1' },
+    { id: 'Saha 2', name: 'Saha 2' },
+    { id: 'Saha 3', name: 'Saha 3' },
+    { id: 'Saha 4', name: 'Saha 4' },
+  ]
+
+  for (const fieldData of defaultFields) {
+    const existingField = await prisma.field.findUnique({
+      where: { id: fieldData.id }
+    })
+
+    if (!existingField) {
+      await prisma.field.create({
+        data: {
+          id: fieldData.id,
+          name: fieldData.name,
+          isActive: true
+        }
+      })
+      console.log(`✅ Default Field created: ${fieldData.name}`)
+    }
+  }
+
   // Create sample fee types
   const feeTypes = [
     { 

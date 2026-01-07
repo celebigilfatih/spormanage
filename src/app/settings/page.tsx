@@ -20,7 +20,11 @@ import {
   Plus,
   Edit2,
   Trash2,
-  Building2
+  Building2,
+  Upload,
+  X,
+  MapPin,
+  Square
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -33,6 +37,7 @@ interface SystemSettings {
   schoolAddress: string;
   schoolPhone: string;
   schoolEmail: string;
+  schoolLogo?: string | null;
   currency: string;
   timeZone: string;
   language: string;
@@ -69,6 +74,28 @@ interface Branch {
   };
 }
 
+interface Field {
+  id: string;
+  name: string;
+  branchId?: string | null;
+  capacity?: number | null;
+  location?: string | null;
+  isActive: boolean;
+  branch?: {
+    id: string;
+    name: string;
+  } | null;
+}
+
+interface Location {
+  id: string;
+  name: string;
+  address?: string | null;
+  city?: string | null;
+  district?: string | null;
+  isActive: boolean;
+}
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<SystemSettings>({
     schoolName: 'Futbol Okulu',
@@ -87,6 +114,7 @@ export default function SettingsPage() {
   
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [feeTypes, setFeeTypes] = useState<FeeType[]>([]);
   const [editingFeeType, setEditingFeeType] = useState<FeeType | null>(null);
   const [newFeeType, setNewFeeType] = useState({ name: '', period: 'MONTHLY' });
@@ -97,6 +125,18 @@ export default function SettingsPage() {
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
   const [newBranch, setNewBranch] = useState({ name: '', address: '', phone: '', email: '', managerName: '' });
   const [showBranchForm, setShowBranchForm] = useState(false);
+  
+  // Field state
+  const [fields, setFields] = useState<Field[]>([]);
+  const [editingField, setEditingField] = useState<Field | null>(null);
+  const [newField, setNewField] = useState({ name: '', branchId: '', capacity: '', location: '' });
+  const [showFieldForm, setShowFieldForm] = useState(false);
+  
+  // Location state
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [editingLocation, setEditingLocation] = useState<Location | null>(null);
+  const [newLocation, setNewLocation] = useState({ name: '', address: '', city: '', district: '' });
+  const [showLocationForm, setShowLocationForm] = useState(false);
   
   const { toast } = useToast();
   const { user } = useAuth();
@@ -114,6 +154,8 @@ export default function SettingsPage() {
     loadSettings();
     loadFeeTypes();
     loadBranches();
+    loadFields();
+    loadLocations();
   }, [isAdmin]);
 
   const loadSettings = async () => {
@@ -123,6 +165,9 @@ export default function SettingsPage() {
       if (response.ok) {
         const data = await response.json();
         setSettings(prev => ({ ...prev, ...data }));
+        if (data.schoolLogo) {
+          setLogoPreview(data.schoolLogo);
+        }
       }
     } catch (error) {
       console.error('Failed to load settings:', error);
@@ -153,6 +198,69 @@ export default function SettingsPage() {
     } catch (error) {
       console.error('Failed to load branches:', error);
     }
+  };
+
+  const loadFields = async () => {
+    try {
+      const response = await fetch('/api/fields');
+      if (response.ok) {
+        const data = await response.json();
+        setFields(data);
+      }
+    } catch (error) {
+      console.error('Failed to load fields:', error);
+    }
+  };
+
+  const loadLocations = async () => {
+    try {
+      const response = await fetch('/api/locations');
+      if (response.ok) {
+        const data = await response.json();
+        setLocations(data);
+      }
+    } catch (error) {
+      console.error('Failed to load locations:', error);
+    }
+  };
+
+  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Hata",
+        description: "Lütfen bir resim dosyası seçiniz",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: "Hata",
+        description: "Dosya boyutu 2MB'dan küçük olmalıdır",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Convert to base64
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      setLogoPreview(base64String);
+      setSettings(prev => ({ ...prev, schoolLogo: base64String }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeLogo = () => {
+    setLogoPreview(null);
+    setSettings(prev => ({ ...prev, schoolLogo: null }));
   };
 
   const handleSaveFeeType = async () => {
@@ -319,6 +427,176 @@ export default function SettingsPage() {
     setShowBranchForm(false);
     setEditingBranch(null);
     setNewBranch({ name: '', address: '', phone: '', email: '', managerName: '' });
+  };
+
+  // Field handlers
+  const handleSaveField = async () => {
+    try {
+      const fieldData = {
+        name: newField.name,
+        branchId: newField.branchId || null,
+        capacity: newField.capacity ? parseInt(newField.capacity) : null,
+        location: newField.location || null
+      };
+
+      const url = editingField ? `/api/fields/${editingField.id}` : '/api/fields';
+      const method = editingField ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fieldData),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Başarılı",
+          description: editingField ? "Saha güncellendi" : "Saha oluşturuldu",
+        });
+        setNewField({ name: '', branchId: '', capacity: '', location: '' });
+        setEditingField(null);
+        setShowFieldForm(false);
+        loadFields();
+      } else {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to save field');
+      }
+    } catch (error) {
+      toast({
+        title: "Hata",
+        description: error instanceof Error ? error.message : "Saha kaydedilemedi",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditField = (field: Field) => {
+    setEditingField(field);
+    setNewField({
+      name: field.name,
+      branchId: field.branchId || '',
+      capacity: field.capacity?.toString() || '',
+      location: field.location || ''
+    });
+    setShowFieldForm(true);
+  };
+
+  const handleDeleteField = async (id: string) => {
+    if (!confirm('Bu sahayı silmek istediğinizden emin misiniz?')) return;
+
+    try {
+      const response = await fetch(`/api/fields/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Başarılı",
+          description: "Saha silindi",
+        });
+        loadFields();
+      } else {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete field');
+      }
+    } catch (error) {
+      toast({
+        title: "Hata",
+        description: error instanceof Error ? error.message : "Saha silinemedi",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancelField = () => {
+    setShowFieldForm(false);
+    setEditingField(null);
+    setNewField({ name: '', branchId: '', capacity: '', location: '' });
+  };
+
+  // Location handlers
+  const handleSaveLocation = async () => {
+    try {
+      const locationData = {
+        name: newLocation.name,
+        address: newLocation.address || null,
+        city: newLocation.city || null,
+        district: newLocation.district || null
+      };
+
+      const url = editingLocation ? `/api/locations/${editingLocation.id}` : '/api/locations';
+      const method = editingLocation ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(locationData),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Başarılı",
+          description: editingLocation ? "Lokasyon güncellendi" : "Lokasyon oluşturuldu",
+        });
+        setNewLocation({ name: '', address: '', city: '', district: '' });
+        setEditingLocation(null);
+        setShowLocationForm(false);
+        loadLocations();
+      } else {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to save location');
+      }
+    } catch (error) {
+      toast({
+        title: "Hata",
+        description: error instanceof Error ? error.message : "Lokasyon kaydedilemedi",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditLocation = (location: Location) => {
+    setEditingLocation(location);
+    setNewLocation({
+      name: location.name,
+      address: location.address || '',
+      city: location.city || '',
+      district: location.district || ''
+    });
+    setShowLocationForm(true);
+  };
+
+  const handleDeleteLocation = async (id: string) => {
+    if (!confirm('Bu lokasyonu silmek istediğinizden emin misiniz?')) return;
+
+    try {
+      const response = await fetch(`/api/locations/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Başarılı",
+          description: "Lokasyon silindi",
+        });
+        loadLocations();
+      } else {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete location');
+      }
+    } catch (error) {
+      toast({
+        title: "Hata",
+        description: error instanceof Error ? error.message : "Lokasyon silinemedi",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancelLocation = () => {
+    setShowLocationForm(false);
+    setEditingLocation(null);
+    setNewLocation({ name: '', address: '', city: '', district: '' });
   };
 
   const handleSave = async () => {
@@ -496,6 +774,61 @@ export default function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Logo Upload */}
+            <div>
+              <Label htmlFor="schoolLogo">Okul Logosu</Label>
+              <div className="mt-2">
+                {(settings.schoolLogo || logoPreview) ? (
+                  <div className="relative inline-block">
+                    <img
+                      src={logoPreview || settings.schoolLogo || ''}
+                      alt="Okul Logosu"
+                      className="h-24 w-24 object-cover rounded-lg border border-gray-300"
+                    />
+                    <button
+                      onClick={removeLogo}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                      title="Logoyu Kaldır"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <label
+                    htmlFor="schoolLogo"
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500 transition-colors cursor-pointer block"
+                  >
+                    <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-600 mb-2">Logo yüklemek için tıklayın</p>
+                    <p className="text-xs text-gray-500">PNG, JPG, GIF (Maks 2MB)</p>
+                    <input
+                      id="schoolLogo"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      className="hidden"
+                      disabled={saving}
+                    />
+                  </label>
+                )}
+                {(settings.schoolLogo || logoPreview) && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <label htmlFor="schoolLogoReplace" className="text-sm font-medium cursor-pointer text-blue-600 hover:text-blue-700">
+                      Değiştir
+                    </label>
+                    <input
+                      id="schoolLogoReplace"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      className="hidden"
+                      disabled={saving}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+            
             <div>
               <Label htmlFor="schoolName">Okul Adı</Label>
               <Input
@@ -913,6 +1246,275 @@ export default function SettingsPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDeleteBranch(branch.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Field Management */}
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Square className="h-5 w-5" />
+                  Saha Yönetimi
+                </CardTitle>
+                <CardDescription>
+                  Antrenman sahalarınızı tanımlayın ve yönetin
+                </CardDescription>
+              </div>
+              <Button
+                onClick={() => setShowFieldForm(!showFieldForm)}
+                size="sm"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Yeni Saha
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {showFieldForm && (
+              <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+                <h4 className="font-medium">
+                  {editingField ? 'Sahayı Düzenle' : 'Yeni Saha Ekle'}
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="fieldName">Saha Adı *</Label>
+                    <Input
+                      id="fieldName"
+                      placeholder="Örn: Saha 1"
+                      value={newField.name}
+                      onChange={(e) => setNewField(prev => ({ ...prev, name: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="fieldBranch">Şube</Label>
+                    <Select
+                      value={newField.branchId}
+                      onValueChange={(value) => setNewField(prev => ({ ...prev, branchId: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Şube seçin (opsiyonel)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {branches.filter(b => b.isActive).map((branch) => (
+                          <SelectItem key={branch.id} value={branch.id}>
+                            {branch.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="fieldCapacity">Kapasite</Label>
+                    <Input
+                      id="fieldCapacity"
+                      type="number"
+                      placeholder="Kişi sayısı"
+                      value={newField.capacity}
+                      onChange={(e) => setNewField(prev => ({ ...prev, capacity: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="fieldLocation">Konum Bilgisi</Label>
+                    <Input
+                      id="fieldLocation"
+                      placeholder="Örn: Batı Kapısı yanı"
+                      value={newField.location}
+                      onChange={(e) => setNewField(prev => ({ ...prev, location: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button variant="outline" onClick={handleCancelField}>
+                    İptal
+                  </Button>
+                  <Button
+                    onClick={handleSaveField}
+                    disabled={!newField.name}
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    {editingField ? 'Güncelle' : 'Kaydet'}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {fields.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Square className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>Henüz saha tanımlanmamış</p>
+                <p className="text-sm">Yeni saha eklemek için yukarıdaki butonu kullanın</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {fields.map((field) => (
+                  <div
+                    key={field.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex-1">
+                      <h4 className="font-medium">{field.name}</h4>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                        {field.branch && (
+                          <span>Şube: {field.branch.name}</span>
+                        )}
+                        {field.capacity && (
+                          <span>Kapasite: {field.capacity}</span>
+                        )}
+                        {field.location && (
+                          <span>Konum: {field.location}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditField(field)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteField(field.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Location Management */}
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  Lokasyon Yönetimi
+                </CardTitle>
+                <CardDescription>
+                  Antrenman lokasyonlarınızı tanımlayın ve yönetin
+                </CardDescription>
+              </div>
+              <Button
+                onClick={() => setShowLocationForm(!showLocationForm)}
+                size="sm"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Yeni Lokasyon
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {showLocationForm && (
+              <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+                <h4 className="font-medium">
+                  {editingLocation ? 'Lokasyonu Düzenle' : 'Yeni Lokasyon Ekle'}
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="locationName">Lokasyon Adı *</Label>
+                    <Input
+                      id="locationName"
+                      placeholder="Örn: Merkez Tesis"
+                      value={newLocation.name}
+                      onChange={(e) => setNewLocation(prev => ({ ...prev, name: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="locationCity">Şehir</Label>
+                    <Input
+                      id="locationCity"
+                      placeholder="Örn: İstanbul"
+                      value={newLocation.city}
+                      onChange={(e) => setNewLocation(prev => ({ ...prev, city: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="locationDistrict">İlçe</Label>
+                    <Input
+                      id="locationDistrict"
+                      placeholder="Örn: Kadıköy"
+                      value={newLocation.district}
+                      onChange={(e) => setNewLocation(prev => ({ ...prev, district: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="locationAddress">Adres</Label>
+                    <Input
+                      id="locationAddress"
+                      placeholder="Detaylı adres"
+                      value={newLocation.address}
+                      onChange={(e) => setNewLocation(prev => ({ ...prev, address: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button variant="outline" onClick={handleCancelLocation}>
+                    İptal
+                  </Button>
+                  <Button
+                    onClick={handleSaveLocation}
+                    disabled={!newLocation.name}
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    {editingLocation ? 'Güncelle' : 'Kaydet'}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {locations.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <MapPin className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>Henüz lokasyon tanımlanmamış</p>
+                <p className="text-sm">Yeni lokasyon eklemek için yukarıdaki butonu kullanın</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {locations.map((location) => (
+                  <div
+                    key={location.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex-1">
+                      <h4 className="font-medium">{location.name}</h4>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {location.district && location.city && (
+                          <span>{location.district}, {location.city}</span>
+                        )}
+                        {location.address && (
+                          <div className="mt-1">{location.address}</div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditLocation(location)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteLocation(location.id)}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>

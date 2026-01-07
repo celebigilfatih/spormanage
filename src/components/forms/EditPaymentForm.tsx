@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Payment } from '@/types'
+import { useState, useEffect } from 'react'
 
 const editPaymentSchema = z.object({
   amount: z.string().min(1, 'Tutar zorunludur'),
@@ -30,6 +31,12 @@ export function EditPaymentForm({
   onCancel, 
   isLoading = false
 }: EditPaymentFormProps) {
+  const [mounted, setMounted] = useState(false)
+  
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   const {
     register,
     handleSubmit,
@@ -44,6 +51,7 @@ export function EditPaymentForm({
   })
 
   const formatCurrency = (amount: number) => {
+    if (!mounted) return `${amount} TL`;
     return new Intl.NumberFormat('tr-TR', {
       style: 'currency',
       currency: 'TRY'

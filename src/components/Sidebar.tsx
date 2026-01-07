@@ -18,7 +18,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Shield,
-  X
+  X,
+  BarChart3
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -35,6 +36,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
     { name: 'Ödemeler', route: '/payments', icon: CreditCard },
     { name: 'Antrenmanlar', route: '/trainings', icon: Activity },
     { name: 'Yoklama', route: '/attendance', icon: UserCheck },
+    { name: 'Yoklama Analizi', route: '/analytics/attendance', icon: BarChart3 },
     { name: 'Gruplar', route: '/groups', icon: UsersRound },
     { name: 'Teknik Kadro', route: '/trainers', icon: Users },
     { name: 'Notlar', route: '/notes', icon: FileText },

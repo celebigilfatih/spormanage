@@ -112,7 +112,19 @@ export async function PUT(
     }
 
     const { id: groupId } = await params
-    const { name, description, coachId, assistantCoachId, branchId } = await request.json()
+    const { 
+      name, 
+      description, 
+      coachId, 
+      assistantCoachId, 
+      branchId,
+      trainingDays,
+      trainingStartTime,
+      trainingEndTime,
+      trainingType,
+      fieldId,
+      locationId
+    } = await request.json()
 
     if (!name) {
       return NextResponse.json(
@@ -162,6 +174,12 @@ export async function PUT(
         coachId: coachId || null,
         assistantCoachId: assistantCoachId || null,
         branchId: branchId || null,
+        trainingDays: trainingDays || [],
+        trainingStartTime: trainingStartTime || null,
+        trainingEndTime: trainingEndTime || null,
+        trainingType: trainingType || null,
+        fieldId: fieldId || null,
+        locationId: locationId || null,
       },
       include: {
         coach: {
@@ -179,6 +197,18 @@ export async function PUT(
           }
         },
         branch: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        field: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        location: {
           select: {
             id: true,
             name: true
@@ -328,29 +358,17 @@ export async function DELETE(
         })
 
         for (const training of trainings) {
-          // Delete attendance records for all sessions of this training
-          const sessions = await tx.trainingSession.findMany({
-            where: { trainingId: training.id },
-            select: { id: true }
-          })
-
-          for (const session of sessions) {
-            await tx.attendance.deleteMany({
-              where: { sessionId: session.id }
-            })
-          }
-
-          // Delete all sessions
-          await tx.trainingSession.deleteMany({
-            where: { trainingId: training.id }
-          })
-
-          // Delete training
+          // Delete training (cascading deletes will handle sessions and attendances)
           await tx.training.delete({
             where: { id: training.id }
           })
         }
       }
+
+      // Delete all training sessions for this group
+      await tx.trainingSession.deleteMany({
+        where: { groupId }
+      })
 
       // 3. Update fee types to remove group reference
       if (group._count.feeTypes > 0) {

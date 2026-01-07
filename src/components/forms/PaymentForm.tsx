@@ -39,10 +39,12 @@ export function PaymentForm({
 }: PaymentFormProps) {
   const [students, setStudents] = useState<Student[]>([])
   const [branches, setBranches] = useState<Branch[]>([])
-  const [selectedBranchId, setSelectedBranchId] = useState<string>('')
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('all')
   const [feeTypes, setFeeTypes] = useState<FeeType[]>([])
   const [loadingData, setLoadingData] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   const [studentSearch, setStudentSearch] = useState('')
+  const [mounted, setMounted] = useState(false)
   const [showStudentDropdown, setShowStudentDropdown] = useState(false)
   const studentDropdownRef = useRef<HTMLDivElement>(null)
 
@@ -66,26 +68,48 @@ export function PaymentForm({
       feeTypeId: '',
       amount: '',
       installmentCount: '1',
-      startDate: new Date().toISOString().split('T')[0],
+      startDate: '',
       notes: ''
     }
   })
 
+  // Set default start date only after mounting to avoid hydration mismatch
+  useEffect(() => {
+    if (!initialData && !watch('startDate')) {
+      setValue('startDate', new Date().toISOString().split('T')[0])
+    }
+  }, [mounted, initialData, setValue, watch])
+
   const studentId = watch('studentId')
   const feeTypeId = watch('feeTypeId')
 
-  // Filter students based on branch and search
-  const filteredStudents = students.filter(student => {
-    // Filter by branch if selected (and not 'all')
-    if (selectedBranchId && selectedBranchId !== 'all' && student.branchId !== selectedBranchId) {
-      return false
+  const formatCurrency = (val: number) => {
+    if (!mounted) return `${val} TL`;
+    try {
+      return new Intl.NumberFormat('tr-TR', {
+        style: 'currency',
+        currency: 'TRY'
+      }).format(val)
+    } catch (e) {
+      return `${val} TL`;
     }
-    
-    // Filter by search
-    const fullName = `${student.firstName} ${student.lastName}`.toLowerCase()
-    const searchLower = studentSearch.toLowerCase()
-    return fullName.includes(searchLower)
-  })
+  }
+
+  // Filter students based on search (branch filtering is handled by API)
+  let filteredStudents: Student[] = []
+  try {
+    filteredStudents = students.filter(student => {
+      // Filter by search
+      const firstName = student.firstName || ''
+      const lastName = student.lastName || ''
+      const fullName = `${firstName} ${lastName}`.toLowerCase()
+      const searchLower = (studentSearch || '').toLowerCase()
+      
+      return fullName.includes(searchLower)
+    })
+  } catch (err) {
+    console.error('[PaymentForm] Filter error:', err)
+  }
 
   // Get selected student name for display
   const selectedStudent = students.find(s => s.id === studentId)
@@ -95,9 +119,19 @@ export function PaymentForm({
 
   useEffect(() => {
     fetchBranches()
-    fetchStudents()
     fetchFeeTypes()
+    setMounted(true)
   }, [])
+
+  // Fetch students when branch changes
+  useEffect(() => {
+    if (mounted) {
+      fetchStudents(selectedBranchId)
+    } else {
+      // Initial fetch
+      fetchStudents('all')
+    }
+  }, [selectedBranchId, mounted])
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -165,15 +199,35 @@ export function PaymentForm({
     }
   }
 
-  const fetchStudents = async () => {
+  const fetchStudents = async (branchId?: string) => {
     try {
-      const response = await fetch('/api/students?status=active&limit=1000')
+      setLoadingData(true)
+      setFetchError(null)
+      const bId = branchId || selectedBranchId
+      console.log(`[PaymentForm] Fetching students (branch: ${bId})...`)
+      
+      const params = new URLSearchParams({
+        status: 'active',
+        limit: '1000',
+        t: Date.now().toString()
+      })
+      
+      if (bId && bId !== 'all') {
+        params.append('branchId', bId)
+      }
+
+      const response = await fetch(`/api/students?${params.toString()}`)
       if (response.ok) {
         const data = await response.json()
         setStudents(data.students || [])
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        setFetchError(`Öğrenciler yüklenemedi: ${response.status} ${response.statusText}`)
+        console.error('[PaymentForm] Failed to fetch students:', response.status, response.statusText, errorData)
       }
     } catch (error) {
-      console.error('Failed to fetch students:', error)
+      setFetchError(`Bağlantı hatası: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`)
+      console.error('[PaymentForm] Error fetching students:', error)
     } finally {
       setLoadingData(false)
     }
@@ -232,7 +286,7 @@ export function PaymentForm({
 
         {/* Student Selection - Searchable */}
         <div className="relative" ref={studentDropdownRef}>
-          <Label htmlFor="studentId">Öğrenci *</Label>
+          <Label htmlFor="studentId">Öğrenci * {students.length > 0 && <span className="text-xs font-normal text-green-600">({students.length} öğrenci yüklendi)</span>}</Label>
           <div className="relative">
             <Input
               type="text"
@@ -251,7 +305,24 @@ export function PaymentForm({
             />
             {showStudentDropdown && mode !== 'edit' && (
               <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                {filteredStudents.length > 0 ? (
+                {loadingData ? (
+                  <div className="px-3 py-2 text-sm text-gray-500">
+                    Öğrenciler yükleniyor...
+                  </div>
+                ) : fetchError ? (
+                  <div className="px-3 py-2 text-sm text-red-600">
+                    {fetchError}
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        fetchStudents()
+                      }}
+                      className="ml-2 underline text-blue-600"
+                    >
+                      Tekrar dene
+                    </button>
+                  </div>
+                ) : filteredStudents.length > 0 ? (
                   filteredStudents.map((student) => (
                     <div
                       key={student.id}
@@ -297,10 +368,7 @@ export function PaymentForm({
             <SelectContent>
               {feeTypes.map((feeType) => (
                 <SelectItem key={feeType.id} value={feeType.id}>
-                  {feeType.name} - {new Intl.NumberFormat('tr-TR', {
-                    style: 'currency',
-                    currency: 'TRY'
-                  }).format(feeType.amount)}
+                  {feeType.name} - {formatCurrency(feeType.amount)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -342,10 +410,7 @@ export function PaymentForm({
             <p className="text-sm text-red-600 mt-1">{errors.installmentCount.message}</p>
           )}
           <p className="text-sm text-muted-foreground mt-1">
-            Toplam: {new Intl.NumberFormat('tr-TR', {
-              style: 'currency',
-              currency: 'TRY'
-            }).format(parseFloat(watch('amount') || '0') * parseInt(watch('installmentCount') || '1'))}
+            Toplam: {formatCurrency(parseFloat(watch('amount') || '0') * parseInt(watch('installmentCount') || '1'))}
           </p>
         </div>
 

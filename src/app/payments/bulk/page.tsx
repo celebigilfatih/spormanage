@@ -37,18 +37,20 @@ export default function BulkPaymentsPage() {
   const [selectedStudents, setSelectedStudents] = useState<string[]>([])
   
   // Bulk Collect State
-  const [collectDate, setCollectDate] = useState(new Date().toISOString().split('T')[0])
+  const [collectDate, setCollectDate] = useState('')
   const [collectMethod, setCollectMethod] = useState(PaymentMethod.CASH)
   const [collectNotes, setCollectNotes] = useState('')
   const [pendingPayments, setPendingPayments] = useState<any[]>([])
   const [selectedPayments, setSelectedPayments] = useState<string[]>([])
   
   const [loading, setLoading] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
 
   const canManagePayments = user && AuthService.canManagePayments(user.role as UserRole)
 
   useEffect(() => {
+    setMounted(true)
     if (!canManagePayments) {
       router.push('/payments')
       return
@@ -96,6 +98,12 @@ export default function BulkPaymentsPage() {
       }
     }
   }, [selectedFeeType, feeTypes])
+
+  useEffect(() => {
+    if (mounted && !collectDate) {
+      setCollectDate(new Date().toISOString().split('T')[0])
+    }
+  }, [mounted, collectDate])
 
   const fetchGroups = async () => {
     try {
@@ -275,6 +283,7 @@ export default function BulkPaymentsPage() {
   }
 
   const formatCurrency = (amount: number) => {
+    if (!mounted) return `${amount} TL`;
     return new Intl.NumberFormat('tr-TR', {
       style: 'currency',
       currency: 'TRY'

@@ -8,6 +8,7 @@ let systemSettings = {
   schoolAddress: 'İstanbul, Türkiye',
   schoolPhone: '+90 212 555 0000',
   schoolEmail: 'info@futbolokulu.com',
+  schoolLogo: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj48Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9IjkwIiBmaWxsPSIjMWU0MGFmIi8+PHRleHQgeD0iMTAwIiB5PSIxMjAiIGZvbnQtc2l6ZT0iNjAiIGZvbnQtd2VpZ2h0PSJib2xkIiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIj5GPC90ZXh0Pjwvc3ZnPg==',
   currency: 'TRY',
   timeZone: 'Europe/Istanbul',
   language: 'tr',
