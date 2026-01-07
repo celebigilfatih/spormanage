@@ -122,8 +122,7 @@ export async function PUT(
       trainingStartTime,
       trainingEndTime,
       trainingType,
-      fieldId,
-      locationId
+      fieldId
     } = await request.json()
 
     if (!name) {
@@ -179,7 +178,6 @@ export async function PUT(
         trainingEndTime: trainingEndTime || null,
         trainingType: trainingType || null,
         fieldId: fieldId || null,
-        locationId: locationId || null,
       },
       include: {
         coach: {
@@ -203,12 +201,6 @@ export async function PUT(
           }
         },
         field: {
-          select: {
-            id: true,
-            name: true
-          }
-        },
-        location: {
           select: {
             id: true,
             name: true

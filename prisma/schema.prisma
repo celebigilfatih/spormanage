@@ -91,7 +91,6 @@ model Group {
   trainingEndTime     String?                    // "10:30"
   trainingType        String?                    // "Technical", "Tactical", "Conditioning", "Match Day", "Recovery"
   fieldId             String?
-  locationId          String?
   
   isActive            Boolean   @default(true)
   createdAt           DateTime  @default(now())
@@ -102,7 +101,6 @@ model Group {
   assistantCoach      Trainer?  @relation("GroupAssistantCoach", fields: [assistantCoachId], references: [id])
   branch              Branch?   @relation(fields: [branchId], references: [id])
   field               Field?    @relation(fields: [fieldId], references: [id])
-  location            Location? @relation(fields: [locationId], references: [id])
   
   students            Student[]
   feeTypes            FeeType[]
@@ -385,7 +383,6 @@ model Location {
   branch              Branch?             @relation(fields: [branchId], references: [id])
   trainingSessions    TrainingSession[]
   trainingExceptions  TrainingException[]
-  groups              Group[]
   
   @@map("locations")
 }

@@ -18,7 +18,6 @@ export async function GET() {
         trainingEndTime: true,
         trainingType: true,
         fieldId: true,
-        locationId: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,
@@ -43,12 +42,6 @@ export async function GET() {
           }
         },
         field: {
-          select: {
-            id: true,
-            name: true
-          }
-        },
-        location: {
           select: {
             id: true,
             name: true
@@ -82,8 +75,7 @@ export async function POST(request: NextRequest) {
       trainingStartTime,
       trainingEndTime,
       trainingType,
-      fieldId,
-      locationId
+      fieldId
     } = await request.json()
 
     if (!name) {
@@ -123,7 +115,6 @@ export async function POST(request: NextRequest) {
         trainingEndTime: trainingEndTime || null,
         trainingType: trainingType || null,
         fieldId: fieldId || null,
-        locationId: locationId || null,
       },
       include: {
         coach: {
@@ -147,12 +138,6 @@ export async function POST(request: NextRequest) {
           }
         },
         field: {
-          select: {
-            id: true,
-            name: true
-          }
-        },
-        location: {
           select: {
             id: true,
             name: true

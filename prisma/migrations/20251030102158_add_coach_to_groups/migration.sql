@@ -165,7 +165,8 @@ CREATE TABLE "trainings" (
     CONSTRAINT "trainings_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
+-- Table "training_sessions" removed from here because it is recreated in a later migration
+/*
 CREATE TABLE "training_sessions" (
     "id" TEXT NOT NULL,
     "trainingId" TEXT NOT NULL,
@@ -180,6 +181,7 @@ CREATE TABLE "training_sessions" (
 
     CONSTRAINT "training_sessions_pkey" PRIMARY KEY ("id")
 );
+*/
 
 -- CreateTable
 CREATE TABLE "attendances" (
@@ -319,13 +321,12 @@ ALTER TABLE "notes" ADD CONSTRAINT "notes_createdById_fkey" FOREIGN KEY ("create
 ALTER TABLE "trainings" ADD CONSTRAINT "trainings_groupId_fkey" FOREIGN KEY ("groupId") REFERENCES "groups"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "training_sessions" ADD CONSTRAINT "training_sessions_trainingId_fkey" FOREIGN KEY ("trainingId") REFERENCES "trainings"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- ALTER TABLE "training_sessions" ADD CONSTRAINT "training_sessions_trainingId_fkey" FOREIGN KEY ("trainingId") REFERENCES "trainings"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "attendances" ADD CONSTRAINT "attendances_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "students"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
-ALTER TABLE "attendances" ADD CONSTRAINT "attendances_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "training_sessions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- ALTER TABLE "attendances" ADD CONSTRAINT "attendances_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "training_sessions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "attendances" ADD CONSTRAINT "attendances_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

@@ -1,3 +1,11 @@
+-- AlterTable
+ALTER TABLE "groups" ADD COLUMN "trainingDays" TEXT[] DEFAULT ARRAY[]::TEXT[],
+ADD COLUMN "trainingStartTime" TEXT,
+ADD COLUMN "trainingEndTime" TEXT,
+ADD COLUMN "trainingType" TEXT,
+ADD COLUMN "fieldId" TEXT,
+ADD COLUMN "locationId" TEXT;
+
 -- CreateEnum
 CREATE TYPE "TrainingSessionStatus" AS ENUM ('PLANNED', 'COMPLETED', 'CANCELLED');
 
@@ -102,10 +110,10 @@ CREATE INDEX "training_sessions_date_status_idx" ON "training_sessions"("date", 
 CREATE UNIQUE INDEX "attendance_analytics_studentId_month_year_key" ON "attendance_analytics"("studentId", "month", "year");
 
 -- AddForeignKey
-ALTER TABLE "Group" ADD CONSTRAINT "Group_fieldId_fkey" FOREIGN KEY ("fieldId") REFERENCES "fields"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "groups" ADD CONSTRAINT "Group_fieldId_fkey" FOREIGN KEY ("fieldId") REFERENCES "fields"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Group" ADD CONSTRAINT "Group_locationId_fkey" FOREIGN KEY ("locationId") REFERENCES "locations"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "groups" ADD CONSTRAINT "Group_locationId_fkey" FOREIGN KEY ("locationId") REFERENCES "locations"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "training_sessions" ADD CONSTRAINT "training_sessions_groupId_fkey" FOREIGN KEY ("groupId") REFERENCES "groups"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -154,7 +154,6 @@ export async function POST(request: NextRequest) {
               startTime: exception?.newStartTime || group.trainingStartTime || '09:00',
               endTime: exception?.newEndTime || group.trainingEndTime || '10:00',
               fieldId: exception?.newFieldId || group.fieldId,
-              locationId: exception?.newLocationId || group.locationId,
               status: 'PLANNED' as const,
               exceptionId: exception?.id,
               generatedAutomatically: true
