@@ -26,12 +26,12 @@ services:
       dockerfile: Dockerfile
     restart: always
     ports:
-      - "3077:3000"
+      - "3177:3000"
     environment:
       DATABASE_URL: postgresql://postgres:postgres123@postgres:5432/aidat_takip?connection_limit=10&pool_timeout=20&connect_timeout=10
       JWT_SECRET: ktkrtYO5vierjap8IKMYv3a9hzKEAR1ZZRSmU2068c4=
       NEXTAUTH_SECRET: imxFyaBJJSLRKslAcneO9xMoAXiBYB1sboEoTqygM0c=
-      NEXTAUTH_URL: http://portal.spormanage.com.tr:3077
+      NEXTAUTH_URL: http://localhost:3177
       NODE_ENV: production
     depends_on:
       - postgres

@@ -55,9 +55,13 @@ export async function GET() {
 
     return NextResponse.json(groups)
   } catch (error) {
-    console.error('Failed to fetch groups:', error)
+    console.error('Detailed fetch groups error:', error instanceof Error ? {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    } : error)
     return NextResponse.json(
-      { error: 'Failed to fetch groups' },
+      { error: 'Failed to fetch groups', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     )
   }

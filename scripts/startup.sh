@@ -5,11 +5,11 @@ echo "🚀 Starting application setup..."
 
 # Run database migrations
 echo "📦 Running database migrations..."
-npx prisma@6.17.1 migrate deploy
+./node_modules/.bin/prisma migrate deploy
 
-# Run seed to ensure admin user exists (optional - won't fail if dependencies missing)
+# Run seed to ensure admin user exists
 echo "👤 Checking/creating admin user..."
-npx tsx prisma/seed.ts || echo "⚠️ Seed skipped (dependencies not available in production build)"
+./node_modules/.bin/tsx prisma/seed.ts || echo "⚠️ Seed skipped"
 
 # Start the Next.js application
 echo "✅ Starting Next.js server..."

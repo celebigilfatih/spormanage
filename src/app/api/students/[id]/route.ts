@@ -50,9 +50,13 @@ export async function GET(
 
     return NextResponse.json(student)
   } catch (error) {
-    console.error('Failed to fetch student:', error)
+    console.error('Detailed fetch student error:', error instanceof Error ? {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    } : error)
     return NextResponse.json(
-      { error: 'Failed to fetch student' },
+      { error: 'Failed to fetch student', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     )
   }

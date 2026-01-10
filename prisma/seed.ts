@@ -36,26 +36,40 @@ async function main() {
     console.log(`✅ Admin user already exists: ${adminEmail}`)
   }
 
-  // Create sample groups
-  const groups = [
-    { name: 'U10', description: '10 yaş altı futbol grubu' },
-    { name: 'U12', description: '12 yaş altı futbol grubu' },
-    { name: 'U14', description: '14 yaş altı futbol grubu' },
-    { name: 'Başlangıç', description: 'Başlangıç seviyesi futbol grubu' },
-    { name: 'İleri', description: 'İleri seviye futbol grubu' },
+  // Create branches
+  const branches = [
+    { name: 'Karaman', address: 'Karaman, Bursa', phone: '+90 224 123 4567' },
+    { name: 'Özlüce', address: 'Özlüce, Bursa', phone: '+90 224 765 4321' },
   ]
 
-  for (const groupData of groups) {
-    const existingGroup = await prisma.group.findUnique({
-      where: { name: groupData.name }
+  const createdBranches = []
+  for (const branchData of branches) {
+    const branch = await prisma.branch.upsert({
+      where: { name: branchData.name },
+      update: {},
+      create: branchData
     })
+    createdBranches.push(branch)
+    console.log(`✅ Branch created: ${branch.name}`)
+  }
 
-    if (!existingGroup) {
-      await prisma.group.create({
-        data: groupData
-      })
-      console.log(`✅ Group created: ${groupData.name}`)
-    }
+  // Create sample groups assigned to branches
+  const groups = [
+    { name: 'Karaman U10', description: 'Karaman 10 yaş altı futbol grubu', branchId: createdBranches.find(b => b.name === 'Karaman')?.id },
+    { name: 'Karaman U12', description: 'Karaman 12 yaş altı futbol grubu', branchId: createdBranches.find(b => b.name === 'Karaman')?.id },
+    { name: 'Özlüce U10', description: 'Özlüce 10 yaş altı futbol grubu', branchId: createdBranches.find(b => b.name === 'Özlüce')?.id },
+    { name: 'Özlüce U12', description: 'Özlüce 12 yaş altı futbol grubu', branchId: createdBranches.find(b => b.name === 'Özlüce')?.id },
+  ]
+
+  const createdGroups = []
+  for (const groupData of groups) {
+    const group = await prisma.group.upsert({
+      where: { name: groupData.name },
+      update: { branchId: groupData.branchId },
+      create: groupData
+    })
+    createdGroups.push(group)
+    console.log(`✅ Group created: ${group.name}`)
   }
 
   // Create default fields (Sahalar)
@@ -157,21 +171,20 @@ async function main() {
   }
 
   // Get admin user for createdBy
-  const admin = await prisma.user.findUnique({
+  const adminUser = await prisma.user.findUnique({
     where: { email: adminEmail }
   })
 
-  if (!admin) {
+  if (!adminUser) {
     throw new Error('Admin user not found')
   }
 
-  // Create 10 students for each group
-  const allGroups = await prisma.group.findMany()
-  const firstNames = ['Ali', 'Ahmet', 'Mehmet', 'Mustafa', 'Can', 'Cem', 'Eren', 'Berk', 'Kerem', 'Furkan', 'Emre', 'Burak', 'Deniz', 'Mert', 'Kaan']
-  const lastNames = ['Yılmaz', 'Kaya', 'Demir', 'Çelik', 'Şahin', 'Yıldız', 'Yıldırım', 'Öztürk', 'Aydın', 'Özdemir', 'Arslan', 'Doğan', 'Aslan', 'Polat', 'Karaağaç']
+  // Create 10 students for each group (Total 40)
+  const firstNames = ['Ali', 'Ahmet', 'Mehmet', 'Mustafa', 'Can', 'Cem', 'Eren', 'Berk', 'Kerem', 'Furkan', 'Emre', 'Burak', 'Deniz', 'Mert', 'Kaan', 'Arda', 'Yiğit', 'Ege', 'Ömer', 'Zeynep', 'Elif', 'Defne', 'Hira', 'Eylül', 'Miray', 'Zehra', 'Azra', 'Ebrar', 'Yağmur']
+  const lastNames = ['Yılmaz', 'Kaya', 'Demir', 'Çelik', 'Şahin', 'Yıldız', 'Yıldırım', 'Öztürk', 'Aydın', 'Özdemir', 'Arslan', 'Doğan', 'Aslan', 'Polat', 'Karaağaç', 'Kılıç', 'Koç', 'Kurt', 'Özkan', 'Şimşek']
   
-  let studentCount = 0
-  for (const group of allGroups) {
+  let studentTotalCount = 0
+  for (const group of createdGroups) {
     for (let i = 0; i < 10; i++) {
       const firstName = firstNames[Math.floor(Math.random() * firstNames.length)]
       const lastName = lastNames[Math.floor(Math.random() * lastNames.length)]
@@ -179,11 +192,11 @@ async function main() {
       // Create parent
       const parent = await prisma.parent.create({
         data: {
-          firstName: firstName === 'Ali' ? 'Ayşe' : 'Fatma',
+          firstName: firstName.length % 2 === 0 ? 'Ayşe' : 'Fatma',
           lastName: lastName,
           phone: `+90 5${Math.floor(Math.random() * 900000000 + 100000000)}`,
-          email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`,
-          relationship: 'anne',
+          email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}${i}@example.com`,
+          relationship: 'veli',
           isPrimary: true
         }
       })
@@ -192,26 +205,27 @@ async function main() {
       const birthDate = new Date()
       birthDate.setFullYear(birthDate.getFullYear() - Math.floor(Math.random() * 5 + 8)) // 8-13 yaş
       
-      const student = await prisma.student.create({
+      await prisma.student.create({
         data: {
           firstName,
           lastName,
           phone: `+90 5${Math.floor(Math.random() * 900000000 + 100000000)}`,
           birthDate,
           groupId: group.id,
-          createdById: admin.id,
+          branchId: group.branchId, // Set branch from group
+          createdById: adminUser.id,
           parents: {
             connect: { id: parent.id }
           }
         }
       })
       
-      studentCount++
+      studentTotalCount++
     }
-    console.log(`✅ Created 10 students for group: ${group.name}`)
+    console.log(`✅ Created 10 students for group: ${group.name} (${group.branchId ? 'Has Branch' : 'No Branch'})`)
   }
 
-  console.log(`✅ Total students created: ${studentCount}`)
+  console.log(`✅ Total students created: ${studentTotalCount}`)
   console.log('🎉 Seeding completed!')
   console.log('')
   console.log('Login credentials:')

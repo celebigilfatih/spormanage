@@ -4,17 +4,17 @@ FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json package-lock.json* .npmrc ./
-# Use npm ci with frozen lockfile for faster, deterministic installs
-RUN npm ci --prefer-offline --no-audit --include=dev
+# Install all dependencies including devDependencies for builder
+RUN npm ci
 
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Generate Prisma client with checksum ignore for offline/network issues
+# Generate Prisma client
 ENV PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
 RUN npx prisma generate
-# Build Next.js with optimizations
+# Build Next.js
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
@@ -24,21 +24,20 @@ WORKDIR /app
 ENV NODE_ENV=production
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
-# Copy standalone output (conditional copy for public directory)
-RUN mkdir -p ./public
+
+# Copy standalone output
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
-COPY --from=builder /app/node_modules/@types ./node_modules/@types
 COPY --from=builder /app/scripts/startup.sh ./scripts/startup.sh
-COPY --from=builder /app/src ./src
 
-# Conditionally copy public directory if it exists and is not empty
-RUN if [ -d "/app/public" ] && [ "$(ls -A /app/public)" ]; then \
-      cp -r /app/public/* ./public/; \
-    fi
+# Copy all node_modules needed for Prisma and startup scripts
+# This ensures all dependencies for migrations and seed are available
+COPY --from=deps /app/node_modules ./node_modules
+
+# Regenerate Prisma client in the runner stage to ensure it's available
+RUN npx prisma generate
 
 RUN chown -R nextjs:nodejs /app
 RUN chmod +x /app/scripts/startup.sh

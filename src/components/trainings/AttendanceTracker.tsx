@@ -167,7 +167,7 @@ export function AttendanceTracker({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-blue-800">
           <div className="flex items-center">
             <Calendar className="h-4 w-4 mr-2" />
-            {new Date(session.date).toLocaleDateString('tr-TR')} at {new Date(session.startTime).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+            {new Date(session.date).toLocaleDateString('tr-TR')} saat {new Date(session.startTime).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
           </div>
           <div className="flex items-center">
             <Users className="h-4 w-4 mr-2" />
