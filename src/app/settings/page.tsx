@@ -396,23 +396,31 @@ export default function SettingsPage() {
     setShowBranchForm(true);
   };
 
-  const handleDeleteBranch = async (id: string) => {
-    if (!confirm('Bu şubeyi silmek istediğinizden emin misiniz?')) return;
+  const handleDeleteBranch = async (id: string, force = false) => {
+    if (!force && !confirm('Bu şubeyi silmek istediğinizden emin misiniz?')) return;
+    if (force && !confirm('Bu şubeye bağlı veriler (öğrenciler, sahalar vb.) şubeden ayrılacak veya silinecektir. Devam etmek istiyor musunuz?')) return;
 
     try {
-      const response = await fetch(`/api/branches/${id}`, {
+      const response = await fetch(`/api/branches/${id}${force ? '?force=true' : ''}`, {
         method: 'DELETE',
       });
+
+      const data = await response.json();
 
       if (response.ok) {
         toast({
           title: "Başarılı",
-          description: "Şube silindi",
+          description: force ? "Şube ve bağlı veriler temizlendi" : "Şube silindi",
         });
         loadBranches();
       } else {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to delete branch');
+        if (data.canForce) {
+          if (confirm(`${data.error}\n\nBağlı verileri şubeden ayırarak zorla silmek ister misiniz?`)) {
+            handleDeleteBranch(id, true);
+            return;
+          }
+        }
+        throw new Error(data.error || 'Failed to delete branch');
       }
     } catch (error) {
       toast({

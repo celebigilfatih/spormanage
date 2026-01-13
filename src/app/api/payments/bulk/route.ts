@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await request.json()
-    const { action, feeTypeId, studentIds, amount, dueDate, groupId } = data
+    const { action, feeTypeId, studentIds, amount, dueDate, groupId, installmentCount } = data
 
     if (action === 'bulk_charge') {
       // Bulk charge operation
@@ -78,27 +78,67 @@ export async function POST(request: NextRequest) {
       }
 
       const paymentAmount = amount ? parseFloat(amount) : feeType.amount
+      const numInstallments = parseInt(installmentCount) || 1
+      const baseDate = new Date(dueDate)
 
-      // Create payments for all selected students
-      const payments = await prisma.$transaction(
-        targetStudentIds.map((studentId: string) =>
-          prisma.payment.create({
-            data: {
-              studentId,
-              feeTypeId,
-              amount: paymentAmount,
-              dueDate: new Date(dueDate),
-              createdById: user.id,
-              status: PaymentStatus.PENDING
-            }
-          })
-        )
-      )
+      // Calculate interval based on fee period
+      let monthsInterval = 1
+      switch (feeType.period) {
+        case 'MONTHLY':
+          monthsInterval = 1
+          break
+        case 'QUARTERLY':
+          monthsInterval = 3
+          break
+        case 'YEARLY':
+          monthsInterval = 12
+          break
+        case 'ONE_TIME':
+          monthsInterval = 1
+          break
+        default:
+          monthsInterval = 1
+      }
+
+      // Create payments for all selected students in a transaction
+      const createdPayments = await prisma.$transaction(async (tx) => {
+        const allCreated = []
+        
+        for (const studentId of targetStudentIds) {
+          // Generate a unique plan ID for grouping installments per student
+          const planId = numInstallments > 1 
+            ? `BULK_${Date.now()}_${studentId.substring(0, 8)}`
+            : null
+
+          for (let i = 0; i < numInstallments; i++) {
+            const currentDueDate = new Date(baseDate)
+            currentDueDate.setMonth(currentDueDate.getMonth() + (i * monthsInterval))
+            
+            const payment = await tx.payment.create({
+              data: {
+                studentId,
+                feeTypeId,
+                amount: paymentAmount,
+                dueDate: currentDueDate,
+                createdById: user.id,
+                status: PaymentStatus.PENDING,
+                referenceNumber: planId,
+                notes: numInstallments > 1 
+                  ? `Toplu Borçlandırma - Taksit ${i + 1}/${numInstallments}`
+                  : 'Toplu Borçlandırma'
+              }
+            })
+            allCreated.push(payment)
+          }
+        }
+        return allCreated
+      })
 
       return NextResponse.json({
-        message: `Successfully created ${payments.length} payment records`,
-        count: payments.length,
-        payments: payments
+        message: `Successfully created ${createdPayments.length} payment records for ${targetStudentIds.length} students`,
+        count: createdPayments.length,
+        studentCount: targetStudentIds.length,
+        payments: createdPayments
       }, { status: 201 })
 
     } else if (action === 'bulk_collect') {

@@ -1,10 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const branchId = searchParams.get('branchId')
+    const isActiveParam = searchParams.get('isActive')
+
+    const where: any = {}
+    if (branchId && branchId !== 'all') where.branchId = branchId
+    
+    if (isActiveParam !== null) {
+      where.isActive = isActiveParam === 'true'
+    }
+    // Removed default isActive: true to see if it fixes the issue
+
     const groups = await prisma.group.findMany({
-      where: { isActive: true },
+      where,
       orderBy: { name: 'asc' },
       select: {
         id: true,
@@ -53,6 +65,7 @@ export async function GET() {
       }
     })
 
+    console.log(`[API Groups] Found ${groups.length} groups for query:`, where)
     return NextResponse.json(groups)
   } catch (error) {
     console.error('Detailed fetch groups error:', error instanceof Error ? {

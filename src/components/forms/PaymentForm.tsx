@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Payment, Student, FeeType, PaymentMethod, Branch } from '@/types'
+import { Payment, Student, FeeType, PaymentMethod, Branch, Group } from '@/types'
 import { useState, useEffect, useRef } from 'react'
 
 const paymentSchema = z.object({
@@ -39,7 +39,9 @@ export function PaymentForm({
 }: PaymentFormProps) {
   const [students, setStudents] = useState<Student[]>([])
   const [branches, setBranches] = useState<Branch[]>([])
+  const [groups, setGroups] = useState<any[]>([])
   const [selectedBranchId, setSelectedBranchId] = useState<string>('all')
+  const [selectedGroupId, setSelectedGroupId] = useState<string>('all')
   const [feeTypes, setFeeTypes] = useState<FeeType[]>([])
   const [loadingData, setLoadingData] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
@@ -123,13 +125,20 @@ export function PaymentForm({
     setMounted(true)
   }, [])
 
-  // Fetch students when branch changes
+  // Fetch students when branch or group changes
   useEffect(() => {
     if (mounted) {
-      fetchStudents(selectedBranchId)
+      fetchStudents(selectedBranchId, selectedGroupId)
     } else {
       // Initial fetch
-      fetchStudents('all')
+      fetchStudents('all', 'all')
+    }
+  }, [selectedBranchId, selectedGroupId, mounted])
+
+  // Fetch groups when branch changes
+  useEffect(() => {
+    if (mounted) {
+      fetchGroups(selectedBranchId)
     }
   }, [selectedBranchId, mounted])
 
@@ -199,12 +208,35 @@ export function PaymentForm({
     }
   }
 
-  const fetchStudents = async (branchId?: string) => {
+  const fetchGroups = async (branchId?: string) => {
+    try {
+      const bId = branchId || selectedBranchId
+      console.log(`[PaymentForm] Fetching groups for branch: ${bId}`)
+      const params = new URLSearchParams()
+      if (bId && bId !== 'all') {
+        params.append('branchId', bId)
+      }
+      
+      const response = await fetch(`/api/groups?${params.toString()}`)
+      if (response.ok) {
+        const data = await response.json()
+        console.log(`[PaymentForm] Fetched ${data.length} groups`)
+        setGroups(data)
+      } else {
+        console.error('[PaymentForm] Failed to fetch groups:', response.status)
+      }
+    } catch (error) {
+      console.error('Failed to fetch groups:', error)
+    }
+  }
+
+  const fetchStudents = async (branchId?: string, groupId?: string) => {
     try {
       setLoadingData(true)
       setFetchError(null)
       const bId = branchId || selectedBranchId
-      console.log(`[PaymentForm] Fetching students (branch: ${bId})...`)
+      const gId = groupId || selectedGroupId
+      console.log(`[PaymentForm] Fetching students (branch: ${bId}, group: ${gId})...`)
       
       const params = new URLSearchParams({
         status: 'active',
@@ -212,13 +244,21 @@ export function PaymentForm({
         t: Date.now().toString()
       })
       
+      // Only add branchId if it's not 'all'
       if (bId && bId !== 'all') {
         params.append('branchId', bId)
       }
+      // Only add groupId if it's not 'all'
+      if (gId && gId !== 'all') {
+        params.append('groupId', gId)
+      }
 
-      const response = await fetch(`/api/students?${params.toString()}`)
+      const url = `/api/students?${params.toString()}`
+      console.log(`[PaymentForm] Fetching from URL: ${url}`)
+      const response = await fetch(url)
       if (response.ok) {
         const data = await response.json()
+        console.log(`[PaymentForm] Fetched ${data.students?.length || 0} students`)
         setStudents(data.students || [])
       } else {
         const errorData = await response.json().catch(() => ({}))
@@ -253,36 +293,67 @@ export function PaymentForm({
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* Branch Selection */}
-        <div>
-          <Label htmlFor="branchId">Şube</Label>
-          <Select
-            value={selectedBranchId}
-            onValueChange={(value) => {
-              setSelectedBranchId(value)
-              // Clear selected student when branch changes
-              setValue('studentId', '')
-              setStudentSearch('')
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Tüm şubeler" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tüm Şubeler</SelectItem>
-              {branches.filter(b => b.isActive).map((branch) => (
-                <SelectItem key={branch.id} value={branch.id}>
-                  {branch.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-gray-500 mt-1">
-            {selectedBranchId && selectedBranchId !== 'all' 
-              ? `${filteredStudents.length} öğrenci listeleniyor`
-              : `Toplam ${students.length} öğrenci`
-            }
-          </p>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="branchId" className="mb-2 block">Şube</Label>
+            <Select
+              value={selectedBranchId}
+              onValueChange={(value) => {
+                console.log('Branch changed:', value)
+                setSelectedBranchId(value)
+                setSelectedGroupId('all')
+                setValue('studentId', '')
+                setStudentSearch('')
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Şube seçin..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tüm Şubeler</SelectItem>
+                {branches.filter(b => b.isActive).map((branch) => (
+                  <SelectItem key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="groupId" className="mb-2 block">Grup</Label>
+            <Select
+              key={`group-select-${selectedBranchId}`}
+              value={selectedGroupId}
+              onValueChange={(value) => {
+                console.log('Group changed:', value)
+                setSelectedGroupId(value)
+                setValue('studentId', '')
+                setStudentSearch('')
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Grup seçin..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tüm Gruplar</SelectItem>
+                {groups && groups.length > 0 ? (
+                  groups.map((group: any) => (
+                    <SelectItem key={group.id} value={group.id}>
+                      {group.name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="none" disabled>Grup bulunamadı</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
+        
+        <p className="text-xs text-gray-500 mt-1">
+          {students.length} öğrenci listeleniyor
+        </p>
 
         {/* Student Selection - Searchable */}
         <div className="relative" ref={studentDropdownRef}>

@@ -32,12 +32,30 @@ export default function Dashboard() {
   const [branchStats, setBranchStats] = useState<any[]>([])
   const [loadingBranches, setLoadingBranches] = useState(true)
 
+  const [groups, setGroups] = useState<any[]>([])
+  const [loadingGroups, setLoadingGroups] = useState(true)
+
   useEffect(() => {
     if (user) {
       fetchStats()
       fetchBranches()
+      fetchGroups()
     }
   }, [user])
+
+  const fetchGroups = async () => {
+    try {
+      const response = await fetch('/api/groups')
+      if (response.ok) {
+        const data = await response.json()
+        setGroups(data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch groups:', error)
+    } finally {
+      setLoadingGroups(false)
+    }
+  }
 
   const fetchStats = async () => {
     try {
@@ -63,18 +81,32 @@ export default function Dashboard() {
         const data = await response.json()
         setBranches(data)
         
-        // Her şube için öğrenci sayısını al
+        // Her şube için öğrenci ve grup sayısını al
         const branchStatsPromises = data.map(async (branch: any) => {
-          const studentsRes = await fetch(`/api/students?branchId=${branch.id}&status=active&limit=1`)
+          const [studentsRes, groupsRes] = await Promise.all([
+            fetch(`/api/students?branchId=${branch.id}&status=active&limit=1`),
+            fetch(`/api/groups?branchId=${branch.id}`)
+          ])
+          
+          let studentCount = 0
+          let groupCount = 0
+          
           if (studentsRes.ok) {
             const studentsData = await studentsRes.json()
-            return {
-              id: branch.id,
-              name: branch.name,
-              studentCount: studentsData.pagination.total
-            }
+            studentCount = studentsData.pagination?.total || 0
           }
-          return { id: branch.id, name: branch.name, studentCount: 0 }
+          
+          if (groupsRes.ok) {
+            const groupsData = await groupsRes.json()
+            groupCount = Array.isArray(groupsData) ? groupsData.length : 0
+          }
+
+          return {
+            id: branch.id,
+            name: branch.name,
+            studentCount,
+            groupCount
+          }
         })
         
         const branchStatsData = await Promise.all(branchStatsPromises)
@@ -254,6 +286,51 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Group Statistics */}
+        {groups.length > 0 && (
+          <div className="mb-6 sm:mb-8">
+            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center gap-2">
+              <Users className="w-6 h-6 text-blue-500" />
+              Gruplara Göre İstatistikler
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+              {loadingGroups ? (
+                <Card className="border-0 shadow-lg">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <div className="w-32 h-4 bg-gray-200 animate-pulse rounded"></div>
+                    <Users className="h-5 w-5 text-gray-400" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="w-16 h-8 bg-gray-200 animate-pulse rounded"></div>
+                  </CardContent>
+                </Card>
+              ) : (
+                groups.map((group) => (
+                  <Card key={group.id} className="border-0 shadow-lg hover:shadow-xl transition-shadow cursor-pointer" onClick={() => router.push(`/groups?id=${group.id}`)}>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium text-gray-600">
+                        {group.name}
+                      </CardTitle>
+                      <Users className="h-5 w-5 text-blue-500" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-gray-900">
+                        {group._count?.students || 0}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Öğrenci sayısı
+                      </p>
+                      <div className="mt-2 text-[10px] text-gray-400 font-medium">
+                        {group.branch?.name}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Branch Statistics */}
         {branches.length > 0 && (
           <div className="mb-6 sm:mb-8">
@@ -273,7 +350,9 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
               ) : (
-                branchStats.map((branch) => (
+                branchStats
+                  .filter(branch => branch.groupCount > 0)
+                  .map((branch) => (
                   <Card key={branch.id} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium text-gray-600">

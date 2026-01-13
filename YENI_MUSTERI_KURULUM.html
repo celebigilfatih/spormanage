@@ -193,6 +193,9 @@ No pending migrations to apply.
             <h3><span class="step-number">2</span>PostgreSQL'e Bağlan</h3>
             <p>Coolify → kulturpay app → <strong>Terminal</strong></p>
             <pre><code>psql "postgresql://postgres:Thor.7485-aidat@f4gwswcwo48cww88c80s8sg8:5432/kulturpay"</code></pre>
+            <div class="warning">
+                <strong>⚠️ Önemli:</strong> <code>psql</code> CLI kullanırken URL sonundaki <code>?schema=public</code> kısmını <strong>silmelisin</strong>. Aksi takdirde <i>"invalid URI query parameter"</i> hatası alırsın.
+            </div>
         </div>
 
         <div class="step">
@@ -310,14 +313,28 @@ VALUES (
 
 \q</code></pre>
 
+        <h3>Mevcut Kullanıcı Şifresini Güncelle</h3>
+        <div class="info">
+            Şifresini unuttuğunuz veya yanlış girdiğiniz bir kullanıcının şifresini şu şekilde güncelleyebilirsiniz:
+        </div>
+        <pre><code>-- 1. Önce yeni hash oluştur (terminalde)
+node -p "require('bcryptjs').hashSync('YeniSifre123', 10)"
+
+-- 2. DB'de güncelle (psql içinde)
+UPDATE users 
+SET password = 'YENI_OLUSTURULAN_HASH_BURAYA', 
+    "updatedAt" = NOW() 
+WHERE email = 'kullanici@email.com';</code></pre>
+
         <h2>🔧 Sorun Giderme</h2>
 
         <h3>❌ Login 401 Hatası</h3>
         <div class="info">
             <strong>Çözüm:</strong><br>
-            1. Coolify Logs'ta <code>[LOGIN-DEBUG]</code> satırlarını kontrol et<br>
-            2. Email'in DB'de olduğunu doğrula: <code>SELECT email FROM users;</code><br>
-            3. Password hash'in doğru olduğundan emin ol
+            1. Coolify Logs'ta <code>[LOGIN-DEBUG]</code> satırlarını kontrol et.<br>
+            2. <code>Input: ...</code> kısmında yazan şifrenin, oluşturduğunuz hash ile aynı olduğundan emin olun (Tire, büyük/küçük harf duyarlıdır).<br>
+            3. Email'in DB'de olduğunu doğrula: <code>SELECT email FROM users;</code><br>
+            4. Eğer <code>Valid: false</code> alıyorsanız, şifre hash'ini yukarıdaki "Mevcut Kullanıcı Şifresini Güncelle" adımıyla yenileyin.
         </div>
 
         <h3>❌ Database Connection Error</h3>
@@ -344,7 +361,7 @@ VALUES (
         
         <p style="text-align: center; color: #6b7280; font-size: 14px;">
             <strong>Spormanage Multi-Tenant Deployment Guide</strong><br>
-            Son Güncelleme: 9 Aralık 2024<br>
+            Son Güncelleme: 12 Ocak 2026<br>
             © 2024 Spormanage - Tüm Hakları Saklıdır
         </p>
     </div>

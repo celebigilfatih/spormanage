@@ -78,7 +78,7 @@ export default function PaymentsPage() {
   const [groupFilter, setGroupFilter] = useState('all')
   const [branchFilter, setBranchFilter] = useState('all')
   const [overdueFilter, setOverdueFilter] = useState(false)
-  const [monthFilter, setMonthFilter] = useState('current') // current, all
+  const [monthFilter, setMonthFilter] = useState('all') // current, all
   
   // Sorting
   const [sortField, setSortField] = useState<'dueDate' | 'amount' | 'student'>('dueDate')

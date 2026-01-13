@@ -27,13 +27,16 @@ export default function BulkPaymentsPage() {
   const [activeTab, setActiveTab] = useState<'charge' | 'collect'>('charge')
   
   // Bulk Charge State
+  const [branches, setBranches] = useState<any[]>([])
   const [groups, setGroups] = useState<Group[]>([])
   const [feeTypes, setFeeTypes] = useState<FeeType[]>([])
   const [students, setStudents] = useState<Student[]>([])
+  const [selectedBranch, setSelectedBranch] = useState('')
   const [selectedGroup, setSelectedGroup] = useState('')
   const [selectedFeeType, setSelectedFeeType] = useState('')
   const [customAmount, setCustomAmount] = useState('')
   const [dueDate, setDueDate] = useState('')
+  const [installmentCount, setInstallmentCount] = useState('1')
   const [selectedStudents, setSelectedStudents] = useState<string[]>([])
   
   // Bulk Collect State
@@ -56,10 +59,16 @@ export default function BulkPaymentsPage() {
       return
     }
     
+    fetchBranches()
     fetchGroups()
     fetchFeeTypes()
     fetchPendingPayments()
   }, [canManagePayments])
+
+  useEffect(() => {
+    fetchGroups(selectedBranch)
+    setSelectedGroup('') // Reset group when branch changes
+  }, [selectedBranch])
 
   useEffect(() => {
     if (selectedGroup) {
@@ -80,7 +89,8 @@ export default function BulkPaymentsPage() {
 
         switch (feeType.period) {
           case 'MONTHLY':
-            calculatedDueDate.setMonth(today.getMonth() + 1)
+            // Set to current month, same day
+            calculatedDueDate = new Date(today)
             break
           case 'QUARTERLY':
             calculatedDueDate.setMonth(today.getMonth() + 3)
@@ -89,8 +99,8 @@ export default function BulkPaymentsPage() {
             calculatedDueDate.setFullYear(today.getFullYear() + 1)
             break
           case 'ONE_TIME':
-            // For one-time fees, set to end of current month
-            calculatedDueDate = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+            // For one-time fees, set to today
+            calculatedDueDate = new Date(today)
             break
         }
 
@@ -105,12 +115,34 @@ export default function BulkPaymentsPage() {
     }
   }, [mounted, collectDate])
 
-  const fetchGroups = async () => {
+  const fetchBranches = async () => {
     try {
-      const response = await fetch('/api/groups')
+      const response = await fetch('/api/branches')
       if (response.ok) {
         const data = await response.json()
+        setBranches(data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch branches:', error)
+    }
+  }
+
+  const fetchGroups = async (branchId?: string) => {
+    try {
+      const bId = branchId || selectedBranch
+      console.log(`[BulkPayments] Fetching groups for branch: ${bId}`)
+      const params = new URLSearchParams()
+      if (bId && bId !== 'all') {
+        params.append('branchId', bId)
+      }
+      
+      const response = await fetch(`/api/groups?${params.toString()}`)
+      if (response.ok) {
+        const data = await response.json()
+        console.log(`[BulkPayments] Fetched ${data.length} groups`)
         setGroups(data)
+      } else {
+        console.error('[BulkPayments] Failed to fetch groups:', response.status)
       }
     } catch (error) {
       console.error('Failed to fetch groups:', error)
@@ -174,7 +206,8 @@ export default function BulkPaymentsPage() {
           feeTypeId: selectedFeeType,
           studentIds: selectedStudents,
           amount: customAmount ? parseFloat(customAmount) : undefined,
-          dueDate: dueDate
+          dueDate: dueDate,
+          installmentCount: parseInt(installmentCount) || 1
         })
       })
 
@@ -183,13 +216,14 @@ export default function BulkPaymentsPage() {
       if (response.ok) {
         setResult({
           success: true,
-          message: `${data.count} öğrenci için ödeme kaydı oluşturuldu`
+          message: `${data.count} ödeme kaydı oluşturuldu (${data.studentCount} öğrenci x ${installmentCount} taksit)`
         })
         // Reset form
         setSelectedStudents([])
         setSelectedFeeType('')
         setCustomAmount('')
         setDueDate('')
+        setInstallmentCount('1')
       } else {
         setResult({
           success: false,
@@ -364,6 +398,23 @@ export default function BulkPaymentsPage() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div>
+                        <Label htmlFor="branch">Şube Seç</Label>
+                        <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Şube seçin..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Tüm Şubeler</SelectItem>
+                            {branches.map((branch) => (
+                              <SelectItem key={branch.id} value={branch.id}>
+                                {branch.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
                         <Label htmlFor="group">Grup Seç</Label>
                         <Select value={selectedGroup} onValueChange={setSelectedGroup}>
                           <SelectTrigger>
@@ -425,6 +476,21 @@ export default function BulkPaymentsPage() {
                               feeTypes.find(ft => ft.id === selectedFeeType)?.period === 'YEARLY' ? 'yıllık' : 'tek seferlik'} periyoda göre ayarlandı
                           </p>
                         )}
+                      </div>
+
+                      <div>
+                        <Label htmlFor="installmentCount">Vade Sayısı (Taksit)</Label>
+                        <Input
+                          id="installmentCount"
+                          type="number"
+                          min="1"
+                          max="24"
+                          value={installmentCount}
+                          onChange={(e) => setInstallmentCount(e.target.value)}
+                        />
+                        <p className="text-sm text-gray-500 mt-1">
+                          Kaç dönemlik borçlandırma yapılacak? (Örn: 3 aylık aidat için 3 yazın)
+                        </p>
                       </div>
 
                       <Button

@@ -14,6 +14,40 @@ async function getCurrentUser(request: NextRequest) {
   })
 }
 
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const branch = await prisma.branch.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            students: true,
+            groups: true,
+            fields: true,
+            locations: true
+          }
+        }
+      }
+    })
+
+    if (!branch) {
+      return NextResponse.json({ error: 'Şube bulunamadı' }, { status: 404 })
+    }
+
+    return NextResponse.json(branch)
+  } catch (error) {
+    console.error('Failed to fetch branch:', error)
+    return NextResponse.json(
+      { error: 'Şube yüklenirken hata oluştu' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -83,21 +117,81 @@ export async function DELETE(
     }
 
     const { id } = await params
+    const { searchParams } = new URL(request.url)
+    const force = searchParams.get('force') === 'true'
 
-    // Check if branch has students
-    const studentsCount = await prisma.student.count({
-      where: { branchId: id }
-    })
+    // Check for associated records
+    const [studentsCount, groupsCount, fieldsCount, locationsCount] = await Promise.all([
+      prisma.student.count({ where: { branchId: id } }),
+      prisma.group.count({ where: { branchId: id } }),
+      prisma.field.count({ where: { branchId: id } }),
+      prisma.location.count({ where: { branchId: id } })
+    ])
 
-    if (studentsCount > 0) {
+    if (!force && (studentsCount > 0 || groupsCount > 0 || fieldsCount > 0 || locationsCount > 0)) {
+      const details = []
+      if (studentsCount > 0) details.push(`${studentsCount} öğrenci`)
+      if (groupsCount > 0) details.push(`${groupsCount} grup`)
+      if (fieldsCount > 0) details.push(`${fieldsCount} saha`)
+      if (locationsCount > 0) details.push(`${locationsCount} lokasyon`)
+
+      // Extra safety: log this to terminal
+      console.log(`[Branch DELETE] Blocked: ${id} has ${details.join(', ')}`);
+
       return NextResponse.json(
-        { error: 'Bu şubede kayıtlı öğrenciler var, silinemez' },
+        { error: `Bu şubeye bağlı ${details.join(', ')} var, doğrudan silinemez.`, 
+          details: { studentsCount, groupsCount, fieldsCount, locationsCount },
+          canForce: true
+        },
         { status: 400 }
       )
     }
 
-    await prisma.branch.delete({
-      where: { id }
+    console.log(`[Branch DELETE] Executing delete for: ${id} (force: ${force})`);
+
+    // Use transaction to cleanup associated records if force is true
+    await prisma.$transaction(async (tx) => {
+      if (force) {
+        console.log(`[Branch DELETE] Cleaning up associations for ${id}`);
+        // 1. Detach students and groups
+        await tx.student.updateMany({
+          where: { branchId: id },
+          data: { branchId: null }
+        })
+
+        await tx.group.updateMany({
+          where: { branchId: id },
+          data: { branchId: null }
+        })
+
+        // Detach parents who might be indirectly linked through students (none needed, students keep parents)
+
+        // 2. Find all fields and locations for this branch to cleanup their relations
+        const fields = await tx.field.findMany({ where: { branchId: id }, select: { id: true } })
+        const locations = await tx.location.findMany({ where: { branchId: id }, select: { id: true } })
+        
+        const fieldIds = fields.map(f => f.id)
+        const locationIds = locations.map(l => l.id)
+
+        // 3. Cleanup relations for fields/locations (TrainingSession, TrainingException)
+        if (fieldIds.length > 0) {
+          await tx.trainingSession.updateMany({ where: { fieldId: { in: fieldIds } }, data: { fieldId: null } })
+          await tx.trainingException.updateMany({ where: { newFieldId: { in: fieldIds } }, data: { newFieldId: null } })
+        }
+        
+        if (locationIds.length > 0) {
+          await tx.trainingSession.updateMany({ where: { locationId: { in: locationIds } }, data: { locationId: null } })
+          await tx.trainingException.updateMany({ where: { newLocationId: { in: locationIds } }, data: { newLocationId: null } })
+        }
+
+        // 4. Delete associated fields and locations
+        await tx.field.deleteMany({ where: { branchId: id } })
+        await tx.location.deleteMany({ where: { branchId: id } })
+      }
+
+      await tx.branch.delete({
+        where: { id }
+      })
     })
 
     return NextResponse.json({ message: 'Şube başarıyla silindi' })
