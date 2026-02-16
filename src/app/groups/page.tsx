@@ -392,7 +392,7 @@ export default function GroupsPage() {
                                   </SelectItem>
                                 ))
                               ) : (
-                                <SelectItem value="" disabled>
+                                <SelectItem value="loading" disabled>
                                   Şube yükleniyor...
                                 </SelectItem>
                               )}
@@ -448,11 +448,17 @@ export default function GroupsPage() {
                               <SelectValue placeholder="Antrenör seçin" />
                             </SelectTrigger>
                             <SelectContent>
-                              {trainers.filter(t => t.isActive).map((trainer) => (
-                                <SelectItem key={trainer.id} value={trainer.id}>
-                                  {trainer.name}
+                              {trainers && trainers.filter(t => t.isActive).length > 0 ? (
+                                trainers.filter(t => t.isActive).map((trainer) => (
+                                  <SelectItem key={trainer.id} value={trainer.id}>
+                                    {trainer.name}
+                                  </SelectItem>
+                                ))
+                              ) : (
+                                <SelectItem value="no-trainers" disabled>
+                                  Antrenör bulunamadı
                                 </SelectItem>
-                              ))}
+                              )}
                             </SelectContent>
                           </Select>
                         </div>
@@ -466,11 +472,17 @@ export default function GroupsPage() {
                               <SelectValue placeholder="Seçin (Opsiyonel)" />
                             </SelectTrigger>
                             <SelectContent>
-                              {trainers.filter(t => t.isActive && t.id !== groupForm.coachId).map((trainer) => (
-                                <SelectItem key={trainer.id} value={trainer.id}>
-                                  {trainer.name}
+                              {trainers && trainers.filter(t => t.isActive && t.id !== groupForm.coachId).length > 0 ? (
+                                trainers.filter(t => t.isActive && t.id !== groupForm.coachId).map((trainer) => (
+                                  <SelectItem key={trainer.id} value={trainer.id}>
+                                    {trainer.name}
+                                  </SelectItem>
+                                ))
+                              ) : (
+                                <SelectItem value="no-assistants" disabled>
+                                  {groupForm.coachId ? 'Başka antrenör yok' : 'Önce antrenör seçin'}
                                 </SelectItem>
-                              ))}
+                              )}
                             </SelectContent>
                           </Select>
                         </div>
@@ -629,7 +641,7 @@ export default function GroupsPage() {
                                   </SelectItem>
                                 ))
                               ) : (
-                                <SelectItem value="" disabled>
+                                <SelectItem value="loading-edit" disabled>
                                   Şube yükleniyor...
                                 </SelectItem>
                               )}
@@ -685,11 +697,17 @@ export default function GroupsPage() {
                               <SelectValue placeholder="Antrenör seçin" />
                             </SelectTrigger>
                             <SelectContent>
-                              {trainers.filter(t => t.isActive).map((trainer) => (
-                                <SelectItem key={trainer.id} value={trainer.id}>
-                                  {trainer.name}
+                              {trainers && trainers.filter(t => t.isActive).length > 0 ? (
+                                trainers.filter(t => t.isActive).map((trainer) => (
+                                  <SelectItem key={trainer.id} value={trainer.id}>
+                                    {trainer.name}
+                                  </SelectItem>
+                                ))
+                              ) : (
+                                <SelectItem value="no-trainers-edit" disabled>
+                                  Antrenör bulunamadı
                                 </SelectItem>
-                              ))}
+                              )}
                             </SelectContent>
                           </Select>
                         </div>
@@ -703,11 +721,17 @@ export default function GroupsPage() {
                               <SelectValue placeholder="Seçin (Opsiyonel)" />
                             </SelectTrigger>
                             <SelectContent>
-                              {trainers.filter(t => t.isActive && t.id !== groupForm.coachId).map((trainer) => (
-                                <SelectItem key={trainer.id} value={trainer.id}>
-                                  {trainer.name}
+                              {trainers && trainers.filter(t => t.isActive && t.id !== groupForm.coachId).length > 0 ? (
+                                trainers.filter(t => t.isActive && t.id !== groupForm.coachId).map((trainer) => (
+                                  <SelectItem key={trainer.id} value={trainer.id}>
+                                    {trainer.name}
+                                  </SelectItem>
+                                ))
+                              ) : (
+                                <SelectItem value="no-assistants-edit" disabled>
+                                  {groupForm.coachId ? 'Başka antrenör yok' : 'Önce antrenör seçin'}
                                 </SelectItem>
-                              ))}
+                              )}
                             </SelectContent>
                           </Select>
                         </div>
