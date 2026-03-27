@@ -9,7 +9,17 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
-import { Plus, Search, Users as UsersIcon, Edit2, Trash2, Power, Shield, Eye, EyeOff } from 'lucide-react'
+import { Plus, Search, Users as UsersIcon, Edit2, Trash2, Power, Shield, Eye, EyeOff, MapPin, UsersRound } from 'lucide-react'
+
+interface Branch {
+  id: string
+  name: string
+}
+
+interface GroupOption {
+  id: string
+  name: string
+}
 
 interface User {
   id: string
@@ -18,7 +28,10 @@ interface User {
   phone?: string
   role: string
   isActive: boolean
+  branchId?: string
   createdAt: string
+  branch?: { id: string; name: string } | null
+  groupPermissions?: { group: { id: string; name: string } }[]
 }
 
 export default function UsersPage() {
@@ -39,10 +52,17 @@ export default function UsersPage() {
     password: '',
     name: '',
     phone: '',
-    role: 'SECRETARY'
+    role: 'SECRETARY',
+    branchId: '',
+    groupIds: [] as string[]
   })
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Trainer form data
+  const [branches, setBranches] = useState<Branch[]>([])
+  const [branchGroups, setBranchGroups] = useState<GroupOption[]>([])
+  const [loadingGroups, setLoadingGroups] = useState(false)
 
   // Only ADMIN can access
   useEffect(() => {
@@ -59,8 +79,40 @@ export default function UsersPage() {
   useEffect(() => {
     if (user?.role === 'ADMIN') {
       fetchUsers()
+      fetchBranches()
     }
   }, [user, searchTerm, roleFilter])
+
+  const fetchBranches = async () => {
+    try {
+      const response = await fetch('/api/branches')
+      if (response.ok) {
+        const data = await response.json()
+        setBranches(data.filter((b: Branch & { isActive?: boolean }) => b.isActive !== false))
+      }
+    } catch (error) {
+      console.error('Failed to fetch branches:', error)
+    }
+  }
+
+  const fetchGroupsByBranch = async (branchId: string) => {
+    if (!branchId) {
+      setBranchGroups([])
+      return
+    }
+    setLoadingGroups(true)
+    try {
+      const response = await fetch(`/api/groups?branchId=${branchId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setBranchGroups(data.filter((g: GroupOption & { isActive?: boolean }) => g.isActive !== false))
+      }
+    } catch (error) {
+      console.error('Failed to fetch groups:', error)
+    } finally {
+      setLoadingGroups(false)
+    }
+  }
 
   const fetchUsers = async () => {
     try {
@@ -93,7 +145,11 @@ export default function UsersPage() {
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          branchId: formData.role === 'TRAINER' ? formData.branchId : undefined,
+          groupIds: formData.role === 'TRAINER' ? formData.groupIds : undefined
+        })
       })
 
       if (response.ok) {
@@ -124,15 +180,44 @@ export default function UsersPage() {
     }
   }
 
-  const handleEdit = (user: User) => {
-    setEditingUser(user)
-    setFormData({
-      email: user.email,
+  const handleEdit = async (editUser: User) => {
+    setEditingUser(editUser)
+    const baseFormData = {
+      email: editUser.email,
       password: '',
-      name: user.name,
-      phone: user.phone || '',
-      role: user.role
-    })
+      name: editUser.name,
+      phone: editUser.phone || '',
+      role: editUser.role,
+      branchId: editUser.branchId || '',
+      groupIds: editUser.groupPermissions?.map(gp => gp.group.id) || []
+    }
+    setFormData(baseFormData)
+
+    // Grup seçeneklerini yükle (antrenör ise)
+    if (editUser.role === 'TRAINER' && editUser.branchId) {
+      fetchGroupsByBranch(editUser.branchId)
+    }
+
+    // Eğer kullanıcı detayları yoksa API'den çek
+    if (editUser.role === 'TRAINER' && !editUser.groupPermissions) {
+      try {
+        const response = await fetch(`/api/users/${editUser.id}`)
+        if (response.ok) {
+          const detail = await response.json()
+          setFormData(prev => ({
+            ...prev,
+            branchId: detail.branchId || '',
+            groupIds: detail.groupPermissions?.map((gp: any) => gp.group.id) || []
+          }))
+          if (detail.branchId) {
+            fetchGroupsByBranch(detail.branchId)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch user details:', error)
+      }
+    }
+
     setShowForm(true)
   }
 
@@ -175,9 +260,26 @@ export default function UsersPage() {
       password: '',
       name: '',
       phone: '',
-      role: 'SECRETARY'
+      role: 'SECRETARY',
+      branchId: '',
+      groupIds: []
     })
     setShowPassword(false)
+    setBranchGroups([])
+  }
+
+  const handleBranchChange = (branchId: string) => {
+    setFormData(prev => ({ ...prev, branchId, groupIds: [] }))
+    fetchGroupsByBranch(branchId)
+  }
+
+  const toggleGroupSelection = (groupId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      groupIds: prev.groupIds.includes(groupId)
+        ? prev.groupIds.filter(id => id !== groupId)
+        : [...prev.groupIds, groupId]
+    }))
   }
 
   const getRoleBadge = (role: string) => {
@@ -295,6 +397,9 @@ export default function UsersPage() {
                       Rol
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Şube / Gruplar
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Durum
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -314,6 +419,29 @@ export default function UsersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {getRoleBadge(user.role)}
+                      </td>
+                      <td className="px-6 py-4">
+                        {user.role === 'TRAINER' ? (
+                          <div className="text-sm">
+                            {user.branch && (
+                              <div className="flex items-center gap-1 text-gray-700">
+                                <MapPin className="h-3 w-3" />
+                                {user.branch.name}
+                              </div>
+                            )}
+                            {user.groupPermissions && user.groupPermissions.length > 0 && (
+                              <div className="flex items-center gap-1 text-gray-500 mt-1">
+                                <UsersRound className="h-3 w-3" />
+                                {user.groupPermissions.map(gp => gp.group.name).join(', ')}
+                              </div>
+                            )}
+                            {(!user.groupPermissions || user.groupPermissions.length === 0) && !user.branch && (
+                              <span className="text-gray-400 text-xs">Atanmamış</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-xs">-</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -431,7 +559,10 @@ export default function UsersPage() {
                 </label>
                 <Select
                   value={formData.role}
-                  onValueChange={(value) => setFormData({ ...formData, role: value })}
+                  onValueChange={(value) => {
+                    setFormData({ ...formData, role: value, branchId: '', groupIds: [] })
+                    setBranchGroups([])
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -445,6 +576,84 @@ export default function UsersPage() {
                 </Select>
               </div>
             </div>
+
+            {/* Antrenör Şube ve Grup Seçimi */}
+            {formData.role === 'TRAINER' && (
+              <div className="border-t pt-4 mt-2 space-y-4">
+                <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-blue-600" />
+                  Antrenör Yetkilendirme
+                </h3>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Şube *
+                  </label>
+                  <Select
+                    value={formData.branchId || 'placeholder'}
+                    onValueChange={(value) => value !== 'placeholder' && handleBranchChange(value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Şube seçin" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {branches.length > 0 ? (
+                        branches.map((branch) => (
+                          <SelectItem key={branch.id} value={branch.id}>
+                            {branch.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="no-branches" disabled>
+                          Şube bulunamadı
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {formData.branchId && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Erişim Verilecek Gruplar
+                    </label>
+                    {loadingGroups ? (
+                      <div className="text-sm text-gray-500 py-2">Gruplar yükleniyor...</div>
+                    ) : branchGroups.length === 0 ? (
+                      <div className="text-sm text-gray-500 py-2 bg-gray-50 rounded-lg px-3">
+                        Bu şubede henüz grup bulunmuyor
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border rounded-lg p-3 bg-gray-50">
+                        {branchGroups.map((group) => (
+                          <label
+                            key={group.id}
+                            className={`flex items-center gap-2 p-2 rounded-md cursor-pointer transition-colors ${
+                              formData.groupIds.includes(group.id)
+                                ? 'bg-blue-100 border border-blue-300'
+                                : 'bg-white border border-gray-200 hover:bg-gray-100'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={formData.groupIds.includes(group.id)}
+                              onChange={() => toggleGroupSelection(group.id)}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">{group.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                    {formData.groupIds.length > 0 && (
+                      <p className="text-xs text-blue-600 mt-1">
+                        {formData.groupIds.length} grup seçildi
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="flex justify-end space-x-2 pt-4">
               <Button

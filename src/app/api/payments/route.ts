@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { AuthService } from '@/lib/auth'
 import { PaymentStatus } from '@/types'
+import { getTrainerGroupIds } from '@/lib/trainer-permissions'
 
 async function getCurrentUser(request: NextRequest) {
   const token = request.cookies.get('auth-token')?.value
@@ -17,6 +18,11 @@ async function getCurrentUser(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await getCurrentUser(request)
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
@@ -65,6 +71,15 @@ export async function GET(request: NextRequest) {
           { firstName: { contains: search, mode: 'insensitive' } },
           { lastName: { contains: search, mode: 'insensitive' } }
         ]
+      }
+    }
+
+    // TRAINER rolü için: sadece izinli gruplardaki öğrencilerin ödemelerini filtrele
+    if (user.role === 'TRAINER') {
+      const allowedGroupIds = await getTrainerGroupIds(user.id)
+      where.student = {
+        ...where.student,
+        groupId: { in: allowedGroupIds }
       }
     }
 

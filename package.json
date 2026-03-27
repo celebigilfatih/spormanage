@@ -62,9 +62,8 @@
     "tailwindcss-animate": "^1.0.7",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",
+    "xlsx": "^0.18.5",
     "zod": "^4.1.11"
-  },
-  "devDependencies": {
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

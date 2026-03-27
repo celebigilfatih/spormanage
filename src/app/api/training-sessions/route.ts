@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { AuthService } from '@/lib/auth';
+import { getTrainerGroupIds, canAccessGroup } from '@/lib/trainer-permissions';
 
 async function getCurrentUser(request: NextRequest) {
   const token = request.cookies.get('auth-token')?.value;
@@ -48,6 +49,19 @@ export async function GET(request: NextRequest) {
 
     if (groupId) {
       where.groupId = groupId;
+    }
+
+    // TRAINER rolü için: sadece izinli grupların oturumlarını döndür
+    if (user.role === 'TRAINER') {
+      const allowedGroupIds = await getTrainerGroupIds(user.id);
+      if (groupId) {
+        // Eğer belirli bir grup sorgulanıyorsa, izin kontrolü yap
+        if (!allowedGroupIds.includes(groupId)) {
+          return NextResponse.json([]);
+        }
+      } else {
+        where.groupId = { in: allowedGroupIds };
+      }
     }
 
     const sessions = await prisma.trainingSession.findMany({
@@ -103,6 +117,17 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // TRAINER rolü için: gruba erişim kontrolü
+      if (user.role === 'TRAINER') {
+        const hasAccess = await canAccessGroup(user.id, groupId);
+        if (!hasAccess) {
+          return NextResponse.json(
+            { error: 'Bu gruba erişim yetkiniz yok' },
+            { status: 403 }
+          );
+        }
+      }
+
       if (!group.trainingDays || group.trainingDays.length === 0) {
         return NextResponse.json(
           { error: 'Group has no training days defined' },
@@ -110,8 +135,8 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const start = new Date(startDate);
-      const end = new Date(endDate);
+      const start = new Date(startDate + 'T00:00:00.000Z');
+      const end = new Date(endDate + 'T00:00:00.000Z');
       const sessionsToCreate = [];
 
       // Get existing sessions to avoid duplicates
@@ -150,7 +175,7 @@ export async function POST(request: NextRequest) {
           if (!isCancelled) {
             sessionsToCreate.push({
               groupId: groupId,
-              date: new Date(currentDate),
+              date: new Date(dateStr + 'T00:00:00.000Z'),
               startTime: exception?.newStartTime || group.trainingStartTime || '09:00',
               endTime: exception?.newEndTime || group.trainingEndTime || '10:00',
               fieldId: exception?.newFieldId || group.fieldId,

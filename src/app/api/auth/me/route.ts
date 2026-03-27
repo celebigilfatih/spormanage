@@ -25,6 +25,12 @@ export async function GET(request: NextRequest) {
         name: true,
         role: true,
         isActive: true,
+        branchId: true,
+        groupPermissions: {
+          select: {
+            groupId: true
+          }
+        }
       },
     })
 
@@ -38,6 +44,8 @@ export async function GET(request: NextRequest) {
         email: user.email,
         name: user.name,
         role: user.role,
+        branchId: user.branchId,
+        allowedGroupIds: user.groupPermissions.map(gp => gp.groupId),
       },
     })
   } catch (error) {

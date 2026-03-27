@@ -49,11 +49,11 @@ export class AuthService {
   }
 
   static canManagePayments(userRole: UserRole): boolean {
-    return [UserRole.ADMIN, UserRole.ACCOUNTING].includes(userRole)
+    return [UserRole.ADMIN, UserRole.ACCOUNTING, UserRole.TRAINER].includes(userRole)
   }
 
   static canManageStudents(userRole: UserRole): boolean {
-    return [UserRole.ADMIN, UserRole.SECRETARY].includes(userRole)
+    return [UserRole.ADMIN, UserRole.SECRETARY, UserRole.TRAINER].includes(userRole)
   }
 
   static canManageTraining(userRole: UserRole): boolean {

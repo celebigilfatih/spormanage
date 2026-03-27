@@ -10,10 +10,14 @@ RUN npm ci
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-# Generate Prisma client
+# Copy prisma schema FIRST (separate layer) so generate is cached when only source changes
+COPY prisma ./prisma
+# Generate Prisma client TypeScript types only (skip binary engine download for build stage)
 ENV PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
+ENV PRISMA_GENERATE_SKIP_AUTOINSTALL=1
 RUN npx prisma generate
+# Now copy rest of source
+COPY . .
 # Build Next.js
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
@@ -36,7 +40,8 @@ COPY --from=builder /app/scripts/startup.sh ./scripts/startup.sh
 # This ensures all dependencies for migrations and seed are available
 COPY --from=deps /app/node_modules ./node_modules
 
-# Regenerate Prisma client in the runner stage to ensure it's available
+# Generate Prisma client with binary engine at build time
+ENV PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
 RUN npx prisma generate
 
 RUN chown -R nextjs:nodejs /app

@@ -15,6 +15,57 @@ async function getCurrentUser(request: NextRequest) {
   })
 }
 
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (currentUser.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+    }
+
+    const params = await context.params
+    const userId = params.id
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        branchId: true,
+        createdAt: true,
+        branch: {
+          select: { id: true, name: true }
+        },
+        groupPermissions: {
+          select: {
+            group: {
+              select: { id: true, name: true }
+            }
+          }
+        }
+      }
+    })
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    return NextResponse.json(user)
+  } catch (error) {
+    console.error('Failed to fetch user:', error)
+    return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 })
+  }
+}
+
 export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -33,7 +84,7 @@ export async function PUT(
     const params = await context.params
     const userId = params.id
     const data = await request.json()
-    const { email, password, name, phone, role, trainerId, isActive } = data
+    const { email, password, name, phone, role, trainerId, isActive, branchId, groupIds } = data
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
@@ -60,7 +111,8 @@ export async function PUT(
       name,
       phone,
       role,
-      isActive
+      isActive,
+      branchId: role === 'TRAINER' ? (branchId || null) : null
     }
 
     // Hash password if provided
@@ -78,9 +130,32 @@ export async function PUT(
         phone: true,
         role: true,
         isActive: true,
+        branchId: true,
         createdAt: true
       }
     })
+
+    // Grup izinlerini güncelle (TRAINER rolü için)
+    if (role === 'TRAINER' && groupIds !== undefined) {
+      // Mevcut izinleri sil
+      await prisma.userGroupPermission.deleteMany({
+        where: { userId }
+      })
+      // Yeni izinleri oluştur
+      if (groupIds.length > 0) {
+        await prisma.userGroupPermission.createMany({
+          data: groupIds.map((groupId: string) => ({
+            userId,
+            groupId
+          }))
+        })
+      }
+    } else if (role !== 'TRAINER') {
+      // Rol değiştiyse ve artık TRAINER değilse izinleri temizle
+      await prisma.userGroupPermission.deleteMany({
+        where: { userId }
+      })
+    }
 
     return NextResponse.json(updatedUser)
   } catch (error) {

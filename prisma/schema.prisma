@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -18,13 +19,16 @@ model User {
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
   trainerId         String?
+  branchId          String?
   createdNotes      Note[]         @relation("NoteCreator")
   sentNotifications Notification[] @relation("NotificationSender")
   createdPayments   Payment[]      @relation("PaymentCreator")
   createdStudents   Student[]      @relation("StudentCreator")
   trainer           Trainer?       @relation(fields: [trainerId], references: [id])
+  branch            Branch?        @relation("UserBranch", fields: [branchId], references: [id])
   markedAttendances Attendance[]   @relation("AttendanceMarker")
   createdExceptions TrainingException[] @relation("ExceptionCreator")
+  groupPermissions  UserGroupPermission[]
 
   @@map("users")
 }
@@ -108,6 +112,7 @@ model Group {
   trainingSessions    TrainingSession[]
   trainingExceptions  TrainingException[]
   groupHistories      GroupHistory[]
+  userPermissions     UserGroupPermission[]
   
   @@map("groups")
 }
@@ -311,8 +316,21 @@ model Branch {
   students    Student[]
   fields      Field[]
   locations   Location[]
+  users       User[]    @relation("UserBranch")
   
   @@map("branches")
+}
+
+model UserGroupPermission {
+  id        String   @id @default(cuid())
+  userId    String
+  groupId   String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId])
+  @@map("user_group_permissions")
 }
 
 // NEW: TrainingException model
@@ -492,4 +510,25 @@ enum NotificationStatus {
   SENT
   FAILED
   CANCELLED
+}
+
+model SystemSetting {
+  id                 String   @id @default(cuid())
+  schoolName         String   @default("Futbol Okulu")
+  schoolAddress      String   @default("İstanbul, Türkiye")
+  schoolPhone        String   @default("+90 212 555 0000")
+  schoolEmail        String   @default("info@futbolokulu.com")
+  schoolLogo         String?
+  currency           String   @default("TRY")
+  timeZone           String   @default("Europe/Istanbul")
+  language           String   @default("tr")
+  emailNotifications Boolean  @default(true)
+  smsNotifications   Boolean  @default(false)
+  autoBackup         Boolean  @default(true)
+  backupFrequency    String   @default("daily")
+  sessionTimeout     Int      @default(24)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("system_settings")
 }

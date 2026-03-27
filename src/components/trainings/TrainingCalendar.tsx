@@ -106,8 +106,10 @@ export default function TrainingCalendar() {
       setError(null);
       setSuccess(null);
 
-      const startDate = new Date(year, month - 1, 1).toISOString();
-      const endDate = new Date(year, month, 0).toISOString();
+      const monthPadded = String(month).padStart(2, '0');
+      const lastDay = new Date(year, month, 0).getDate();
+      const startDate = `${year}-${monthPadded}-01`;
+      const endDate = `${year}-${monthPadded}-${String(lastDay).padStart(2, '0')}`;
 
       const response = await fetch('/api/training-sessions', {
         method: 'POST',

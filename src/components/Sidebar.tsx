@@ -38,12 +38,12 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
     { name: 'Yoklama', route: '/attendance', icon: UserCheck },
     { name: 'Yoklama Analizi', route: '/analytics/attendance', icon: BarChart3 },
     { name: 'Gruplar', route: '/groups', icon: UsersRound },
-    { name: 'Teknik Kadro', route: '/trainers', icon: Users },
+    { name: 'Teknik Kadro', route: '/trainers', icon: Users, hideForTrainer: true },
     { name: 'Notlar', route: '/notes', icon: FileText },
-    { name: 'Bildirimler', route: '/notifications', icon: Bell },
-    { name: 'Raporlar', route: '/reports', icon: TrendingUp },
+    { name: 'Bildirimler', route: '/notifications', icon: Bell, hideForTrainer: true },
+    { name: 'Raporlar', route: '/reports', icon: TrendingUp, hideForTrainer: true },
     { name: 'Kullanıcılar', route: '/users', icon: Shield, adminOnly: true },
-    { name: 'Ayarlar', route: '/settings', icon: Settings }
+    { name: 'Ayarlar', route: '/settings', icon: Settings, adminOnly: true }
   ]
 
   const isActive = (route: string) => pathname === route
@@ -96,7 +96,11 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
         <nav className="flex-1 overflow-y-auto py-4">
           <ul className="space-y-1 px-3">
             {navItems
-              .filter(item => !item.adminOnly || user?.role === 'ADMIN')
+              .filter(item => {
+                if (item.adminOnly && user?.role !== 'ADMIN') return false
+                if ((item as any).hideForTrainer && user?.role === 'TRAINER') return false
+                return true
+              })
               .map((item) => {
               const Icon = item.icon
               const active = isActive(item.route)

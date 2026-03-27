@@ -1,8 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { AuthService } from '@/lib/auth'
+import { getTrainerGroupIds } from '@/lib/trainer-permissions'
+
+async function getCurrentUser(request: NextRequest) {
+  const token = request.cookies.get('auth-token')?.value
+  if (!token) return null
+  
+  const payload = AuthService.verifyToken(token)
+  if (!payload) return null
+  
+  return await prisma.user.findUnique({
+    where: { id: payload.userId }
+  })
+}
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await getCurrentUser(request)
+
     const { searchParams } = new URL(request.url)
     const branchId = searchParams.get('branchId')
     const isActiveParam = searchParams.get('isActive')
@@ -13,7 +29,12 @@ export async function GET(request: NextRequest) {
     if (isActiveParam !== null) {
       where.isActive = isActiveParam === 'true'
     }
-    // Removed default isActive: true to see if it fixes the issue
+
+    // TRAINER rolü için: sadece izinli grupları döndür
+    if (user && user.role === 'TRAINER') {
+      const allowedGroupIds = await getTrainerGroupIds(user.id)
+      where.id = { in: allowedGroupIds }
+    }
 
     const groups = await prisma.group.findMany({
       where,

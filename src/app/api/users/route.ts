@@ -66,7 +66,18 @@ export async function GET(request: NextRequest) {
           phone: true,
           role: true,
           isActive: true,
-          createdAt: true
+          branchId: true,
+          createdAt: true,
+          branch: {
+            select: { id: true, name: true }
+          },
+          groupPermissions: {
+            select: {
+              group: {
+                select: { id: true, name: true }
+              }
+            }
+          }
         },
         orderBy: { createdAt: 'desc' }
       }),
@@ -101,11 +112,19 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await request.json()
-    const { email, password, name, phone, role, trainerId } = data
+    const { email, password, name, phone, role, trainerId, branchId, groupIds } = data
 
     if (!email || !password || !name || !role) {
       return NextResponse.json(
         { error: 'Email, password, name, and role are required' },
+        { status: 400 }
+      )
+    }
+
+    // TRAINER rolü için branchId zorunlu
+    if (role === 'TRAINER' && !branchId) {
+      return NextResponse.json(
+        { error: 'Antrenör rolü için şube seçimi zorunludur' },
         { status: 400 }
       )
     }
@@ -132,7 +151,8 @@ export async function POST(request: NextRequest) {
         password: hashedPassword,
         name,
         phone,
-        role
+        role,
+        ...(role === 'TRAINER' && branchId ? { branchId } : {})
       },
       select: {
         id: true,
@@ -141,9 +161,20 @@ export async function POST(request: NextRequest) {
         phone: true,
         role: true,
         isActive: true,
+        branchId: true,
         createdAt: true
       }
     })
+
+    // TRAINER rolü için grup izinlerini oluştur
+    if (role === 'TRAINER' && groupIds && groupIds.length > 0) {
+      await prisma.userGroupPermission.createMany({
+        data: groupIds.map((groupId: string) => ({
+          userId: user.id,
+          groupId
+        }))
+      })
+    }
 
     return NextResponse.json(user, { status: 201 })
   } catch (error) {

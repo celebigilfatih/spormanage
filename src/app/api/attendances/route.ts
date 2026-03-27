@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { AuthService } from '@/lib/auth';
+import { canAccessGroup } from '@/lib/trainer-permissions';
 
 async function getCurrentUser(request: NextRequest) {
   const token = request.cookies.get('auth-token')?.value;
@@ -83,6 +84,17 @@ export async function POST(request: NextRequest) {
           { error: 'Training session not found' },
           { status: 404 }
         );
+      }
+
+      // TRAINER rolü için: gruba erişim kontrolü
+      if (user.role === 'TRAINER') {
+        const hasAccess = await canAccessGroup(user.id, session.groupId);
+        if (!hasAccess) {
+          return NextResponse.json(
+            { error: 'Bu grubun yoklamasına erişim yetkiniz yok' },
+            { status: 403 }
+          );
+        }
       }
 
       await prisma.trainingSession.update({

@@ -33,6 +33,11 @@ services:
       NEXTAUTH_SECRET: imxFyaBJJSLRKslAcneO9xMoAXiBYB1sboEoTqygM0c=
       NEXTAUTH_URL: http://localhost:3177
       NODE_ENV: production
+      # School customization
+      NEXT_PUBLIC_SCHOOL_NAME: 'Futbol Okulu'
+      NEXT_PUBLIC_SCHOOL_ADDRESS: 'İstanbul, Türkiye'
+      NEXT_PUBLIC_SCHOOL_PHONE: '+90 212 555 0000'
+      NEXT_PUBLIC_SCHOOL_EMAIL: 'info@futbolokulu.com'
     depends_on:
       - postgres
 

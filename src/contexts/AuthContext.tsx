@@ -1,10 +1,19 @@
 'use client'
 
 import React, { createContext, useContext, useReducer, useEffect } from 'react'
-import { User, UserRole } from '@/types'
+import { UserRole } from '@/types'
+
+interface AuthUser {
+  id: string
+  email: string
+  name: string
+  role: UserRole | string
+  branchId?: string | null
+  allowedGroupIds?: string[]
+}
 
 interface AuthState {
-  user: User | null
+  user: AuthUser | null
   isLoading: boolean
   isAuthenticated: boolean
 }
@@ -19,7 +28,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 type AuthAction =
   | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_USER'; payload: User | null }
+  | { type: 'SET_USER'; payload: AuthUser | null }
   | { type: 'LOGOUT' }
 
 const authReducer = (state: AuthState, action: AuthAction): AuthState => {

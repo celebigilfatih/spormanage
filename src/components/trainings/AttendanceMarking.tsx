@@ -29,6 +29,7 @@ interface TrainingSession {
     name: string;
   };
   attendanceTaken: boolean;
+  attendances: { studentId: string; status: string; notes?: string }[];
 }
 
 interface AttendanceRecord {
@@ -37,15 +38,27 @@ interface AttendanceRecord {
   notes?: string;
 }
 
-export default function AttendanceMarking() {
+// Local date string YYYY-MM-DD (device timezone)
+function localDateStr(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+interface AttendanceMarkingProps {
+  initialDate?: string;
+  initialGroupId?: string;
+}
+
+export default function AttendanceMarking({ initialDate, initialGroupId }: AttendanceMarkingProps = {}) {
   const [groups, setGroups] = useState<Group[]>([]);
-  const [selectedGroupId, setSelectedGroupId] = useState<string>('');
+  const [selectedGroupId, setSelectedGroupId] = useState<string>(initialGroupId ?? '');
+  const [selectedDate, setSelectedDate] = useState<string>(initialDate ?? localDateStr());
   const [sessions, setSessions] = useState<TrainingSession[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string>('');
   const [session, setSession] = useState<TrainingSession | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [attendance, setAttendance] = useState<Map<string, AttendanceRecord>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -71,45 +84,45 @@ export default function AttendanceMarking() {
     fetchGroups();
   }, []);
 
-  // Fetch sessions when group changes
+  // Fetch sessions when group or date changes
   useEffect(() => {
     if (!selectedGroupId) return;
 
     const fetchSessions = async () => {
       try {
         setError(null);
-        const today = new Date().toISOString().split('T')[0];
+        setSessionsLoading(true);
+        setSessions([]);
+        setSession(null);
+        setSelectedSessionId('');
+        setStudents([]);
+
         const response = await fetch(
-          `/api/training-sessions?groupId=${selectedGroupId}&date=${today}`,
-          {
-            headers: {
-              'Cache-Control': 'no-cache'
-            }
-          }
+          `/api/training-sessions?groupId=${selectedGroupId}&date=${selectedDate}`,
+          { headers: { 'Cache-Control': 'no-cache' } }
         );
 
         if (!response.ok) throw new Error('Oturumlar yüklenemedi');
 
-        const data = await response.json();
+        const data: TrainingSession[] = await response.json();
         setSessions(data);
-        
+
         if (data.length > 0) {
           setSelectedSessionId(data[0].id);
           setSession(data[0]);
         } else {
-          setError('Bu grup için bugün planlanmış antrenman bulunamadı');
-          setSession(null);
-          setStudents([]);
-          setSessions([]);
-          setSelectedSessionId('');
+          const [y, m, d] = selectedDate.split('-');
+          setError(`Bu grup için ${d}.${m}.${y} tarihinde planlanmış antrenman bulunamadı`);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Bir hata oluştu');
+      } finally {
+        setSessionsLoading(false);
       }
     };
 
     fetchSessions();
-  }, [selectedGroupId]);
+  }, [selectedGroupId, selectedDate]);
 
   // Fetch students when session changes
   useEffect(() => {
@@ -124,14 +137,20 @@ export default function AttendanceMarking() {
         if (!studentsResponse.ok) throw new Error('Öğrenciler yüklenemedi');
 
         const studentsData = await studentsResponse.json();
-        setStudents(studentsData.students || []);
+        const studentList: Student[] = studentsData.students || [];
+        setStudents(studentList);
 
-        // Initialize attendance map
+        // Pre-populate from existing attendance records if already taken
+        const existingMap = new Map<string, string>(
+          (session.attendances || []).map(a => [a.studentId, a.status])
+        );
+
         const initialAttendance = new Map<string, AttendanceRecord>();
-        studentsData.students?.forEach((student: Student) => {
+        studentList.forEach((student) => {
+          const existingStatus = existingMap.get(student.id);
           initialAttendance.set(student.id, {
             studentId: student.id,
-            status: 'PRESENT'
+            status: (existingStatus as AttendanceRecord['status']) || 'PRESENT'
           });
         });
         setAttendance(initialAttendance);
@@ -189,6 +208,9 @@ export default function AttendanceMarking() {
         throw new Error(errorData.error || 'Yoklama kaydedilemedi');
       }
 
+      // Update session state to reflect attendance taken
+      setSession(prev => prev ? { ...prev, attendanceTaken: true } : null);
+      setSessions(prev => prev.map(s => s.id === session.id ? { ...s, attendanceTaken: true } : s));
       setSuccess(true);
       setTimeout(() => setSuccess(false), 5000);
     } catch (err) {
@@ -235,20 +257,39 @@ export default function AttendanceMarking() {
       <div className="flex justify-center items-center p-8 min-h-[400px]">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-4 border-blue-900 border-t-transparent rounded-full animate-spin"></div>
-          <div className="text-blue-900 font-medium">Bugünkü antrenman yükleniyor...</div>
+          <div className="text-blue-900 font-medium">Yükleniyor...</div>
         </div>
       </div>
     );
   }
 
+  const isToday = selectedDate === localDateStr();
+
   return (
     <div className="space-y-6">
-      {/* Header with Group & Session Selection */}
+      {/* Header with Group, Date & Session Selection */}
       <div className="bg-gradient-to-br from-blue-900 to-indigo-900 text-white p-8 rounded-2xl shadow-xl border border-blue-800">
-        <h1 className="text-3xl font-black mb-6 tracking-tight">Bugünkü Antrenman Yoklaması</h1>
-        
-        {/* Group and Session Selectors */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+          <h1 className="text-3xl font-black tracking-tight">
+            Antrenman Yoklaması
+            {isToday && (
+              <span className="ml-3 text-sm font-bold bg-amber-500 text-white px-3 py-1 rounded-full align-middle">
+                BUGÜN
+              </span>
+            )}
+          </h1>
+          {!isToday && (
+            <button
+              onClick={() => setSelectedDate(localDateStr())}
+              className="text-xs font-bold px-4 py-2 rounded-lg bg-amber-500 text-white hover:bg-amber-400 transition-all"
+            >
+              Bugüne Dön
+            </button>
+          )}
+        </div>
+
+        {/* Group, Date and Session Selectors */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div>
             <label className="block text-xs font-bold text-blue-200 uppercase tracking-widest mb-2">
               Grup Seçin
@@ -266,7 +307,19 @@ export default function AttendanceMarking() {
               ))}
             </select>
           </div>
-          
+
+          <div>
+            <label className="block text-xs font-bold text-blue-200 uppercase tracking-widest mb-2">
+              Tarih Seçin
+            </label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="w-full bg-blue-800/50 text-white border border-blue-600 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all [color-scheme:dark]"
+            />
+          </div>
+
           <div>
             <label className="block text-xs font-bold text-blue-200 uppercase tracking-widest mb-2">
               Oturum Seçin
@@ -281,13 +334,13 @@ export default function AttendanceMarking() {
                   setSession(foundSession);
                 }
               }}
-              disabled={sessions.length === 0}
+              disabled={sessions.length === 0 || sessionsLoading}
               className="w-full bg-blue-800/50 text-white border border-blue-600 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <option value="">Seçiniz...</option>
+              <option value="">{sessionsLoading ? 'Yükleniyor...' : 'Seçiniz...'}</option>
               {sessions.map((s) => (
                 <option key={s.id} value={s.id} className="bg-blue-900">
-                  {s.startTime} - {s.endTime} ({s.attendanceTaken ? 'Yoklama Alındı' : 'Yoklama Bekleniyor'})
+                  {s.startTime} - {s.endTime} ({s.attendanceTaken ? '✓ Alındı' : 'Bekliyor'})
                 </option>
               ))}
             </select>
@@ -375,10 +428,10 @@ export default function AttendanceMarking() {
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={submitting || session.attendanceTaken}
+              disabled={submitting}
               className="flex-1 h-12 text-lg font-bold bg-blue-900 hover:bg-blue-800 text-white rounded-xl shadow-lg transition-all disabled:opacity-50"
             >
-              {submitting ? 'Kaydediliyor...' : 'Yoklamayı Kaydet'}
+              {submitting ? 'Kaydediliyor...' : session.attendanceTaken ? 'Yoklamayı Güncelle' : 'Yoklamayı Kaydet'}
             </Button>
           </div>
 

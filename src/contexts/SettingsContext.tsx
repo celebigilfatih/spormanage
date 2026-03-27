@@ -27,10 +27,10 @@ interface SettingsContextType {
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined)
 
 const defaultSettings: SystemSettings = {
-  schoolName: 'Futbol Okulu',
-  schoolAddress: 'İstanbul, Türkiye',
-  schoolPhone: '+90 212 555 0000',
-  schoolEmail: 'info@futbolokulu.com',
+  schoolName: process.env.NEXT_PUBLIC_SCHOOL_NAME || 'Futbol Okulu',
+  schoolAddress: process.env.NEXT_PUBLIC_SCHOOL_ADDRESS || 'İstanbul, Türkiye',
+  schoolPhone: process.env.NEXT_PUBLIC_SCHOOL_PHONE || '+90 212 555 0000',
+  schoolEmail: process.env.NEXT_PUBLIC_SCHOOL_EMAIL || 'info@futbolokulu.com',
   currency: 'TRY',
   timeZone: 'Europe/Istanbul',
   language: 'tr',

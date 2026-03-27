@@ -29,10 +29,12 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  Printer
+  Printer,
+  FileSpreadsheet
 } from 'lucide-react'
 import { Payment, Group, FeeType, PaymentStatus, PaymentMethod, UserRole } from '@/types'
 import { AuthService } from '@/lib/auth'
+import * as XLSX from 'xlsx'
 
 interface PaymentSummary {
   totalAmount: number
@@ -573,6 +575,80 @@ export default function PaymentsPage() {
     }
   }
 
+  const [exporting, setExporting] = useState(false)
+
+  const handleExportExcel = async () => {
+    try {
+      setExporting(true)
+      // Fetch all payments with current filters (no pagination)
+      const params = new URLSearchParams({
+        page: '1',
+        limit: '10000',
+        status: statusFilter,
+        groupId: groupFilter,
+        branchId: branchFilter,
+        overdue: overdueFilter.toString(),
+        search: searchTerm,
+        sortField: sortField,
+        sortDirection: sortDirection,
+        month: monthFilter
+      })
+      const response = await fetch(`/api/payments?${params}`)
+      if (!response.ok) throw new Error('Veriler alınamadı')
+      const data: PaymentsResponse = await response.json()
+
+      const statusLabels: Record<string, string> = {
+        PENDING: 'Bekliyor',
+        PARTIAL: 'Kısmi',
+        PAID: 'Ödendi',
+        OVERDUE: 'Gecikmiş',
+        CANCELLED: 'İptal',
+      }
+      const methodLabels: Record<string, string> = {
+        CASH: 'Nakit',
+        BANK_TRANSFER: 'Banka Havalesi',
+        CREDIT_CARD: 'Kredi Kartı',
+        OTHER: 'Diğer',
+      }
+
+      const rows = data.payments.map((p, i) => ({
+        '#': i + 1,
+        'Öğrenci Adı': p.student ? `${p.student.firstName} ${p.student.lastName}` : '-',
+        'Grup': (p.student as any)?.group?.name ?? '-',
+        'Ödeme Türü': p.feeType?.name ?? '-',
+        'Tutar (₺)': p.amount,
+        'Ödenen (₺)': p.paidAmount ?? 0,
+        'Kalan (₺)': p.amount - (p.paidAmount ?? 0),
+        'Durum': statusLabels[p.status] ?? p.status,
+        'Vade Tarihi': p.dueDate ? new Date(p.dueDate).toLocaleDateString('tr-TR') : '-',
+        'Ödeme Tarihi': p.paidDate ? new Date(p.paidDate).toLocaleDateString('tr-TR') : '-',
+        'Ödeme Yöntemi': p.paymentMethod ? (methodLabels[p.paymentMethod] ?? p.paymentMethod) : '-',
+        'Referans No': p.referenceNumber ?? '-',
+        'Notlar': p.notes ?? '-',
+      }))
+
+      const ws = XLSX.utils.json_to_sheet(rows)
+      // Column widths
+      ws['!cols'] = [
+        { wch: 4 }, { wch: 22 }, { wch: 16 }, { wch: 18 },
+        { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 },
+        { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 24 },
+      ]
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, 'Ödemeler')
+
+      const now = new Date()
+      const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
+      XLSX.writeFile(wb, `odemeler_${dateStr}.xlsx`)
+
+      toast({ title: '✅ Excel indirildi!', description: `${rows.length} ödeme dışa aktarıldı` })
+    } catch (err) {
+      toast({ variant: 'destructive', title: '❌ Hata!', description: 'Excel oluşturulamadı' })
+    } finally {
+      setExporting(false)
+    }
+  }
+
   const SortIcon = ({ field }: { field: 'dueDate' | 'amount' | 'student' }) => {
     if (sortField !== field) return <ArrowUpDown className="h-4 w-4 ml-1 inline opacity-30" />
     return sortDirection === 'asc' ? 
@@ -694,6 +770,15 @@ export default function PaymentsPage() {
                 >
                   <Users className="h-4 w-4 mr-2" />
                   Toplu İşlemler
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleExportExcel}
+                  disabled={exporting}
+                  className="text-green-700 border-green-300 hover:bg-green-50 hover:text-green-800"
+                >
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  {exporting ? 'Hazırlanıyor...' : 'Excel Aktar'}
                 </Button>
                 <Button
                   variant="outline"

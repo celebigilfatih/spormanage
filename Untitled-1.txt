@@ -1,0 +1,3 @@
+postgres://postgres:Thor7485Spor@wo408sk44so4kgoscg8s8sc0:5432/postgres
+postgresql://postgres:Thor7485Spor@wo408sk44so4kgoscg8s8sc0:5432/demo1?schema=public
+postgresql://postgres:Thor.7485-aidat@f4gwswcwo48cww88c80s8sg8:5432/kulturpay?schema=public

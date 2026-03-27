@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { AuthService } from '@/lib/auth'
+import { getTrainerGroupIds } from '@/lib/trainer-permissions'
 
 // Get current user from token
 async function getCurrentUser(request: NextRequest) {
@@ -63,6 +64,12 @@ export async function GET(request: NextRequest) {
           { group: { branchId: branchId } }
         ]
       })
+    }
+
+    // TRAINER rolü için: sadece izinli gruplardaki öğrencileri filtrele
+    if (user.role === 'TRAINER') {
+      const allowedGroupIds = await getTrainerGroupIds(user.id)
+      where.AND.push({ groupId: { in: allowedGroupIds } })
     }
 
     if (status === 'active') {
