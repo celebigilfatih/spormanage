@@ -29,6 +29,9 @@ services:
       - "3177:3000"
     environment:
       DATABASE_URL: postgresql://postgres:postgres123@postgres:5432/aidat_takip?connection_limit=10&pool_timeout=20&connect_timeout=10
+      LICENSE_DB_URL: postgresql://postgres:postgres123@postgres:5432/license_db
+      LICENSE_KEY: ADMIN-MASTER-001
+      SUPER_ADMIN_KEY: spormanage-super-2025
       JWT_SECRET: ktkrtYO5vierjap8IKMYv3a9hzKEAR1ZZRSmU2068c4=
       NEXTAUTH_SECRET: imxFyaBJJSLRKslAcneO9xMoAXiBYB1sboEoTqygM0c=
       NEXTAUTH_URL: http://localhost:3177

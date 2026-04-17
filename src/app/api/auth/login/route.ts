@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { AuthService } from '@/lib/auth'
+import { checkLicense } from '@/lib/license'
 
 export async function POST(request: NextRequest) {
   try {
@@ -52,6 +53,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // ── License check ──
+    const license = await checkLicense()
+    if (!license.valid) {
+      const msg = license.suspended
+        ? 'Lisansınız askıya alınmıştır. Lütfen yöneticinizle iletişime geçin.'
+        : 'Lisans süreniz dolmuştur. Lütfen yenileme için iletişime geçin.'
+      return NextResponse.json(
+        { error: msg, licenseExpired: true },
+        { status: 403 }
+      )
+    }
+
     // Generate JWT token
     const token = AuthService.generateToken({
       userId: user.id,
@@ -68,6 +81,11 @@ export async function POST(request: NextRequest) {
         name: user.name,
         role: user.role,
       },
+      // License warning info (if near expiry)
+      ...(license.warning && {
+        licenseWarning: true,
+        licenseDaysLeft: license.daysLeft,
+      }),
     })
 
     response.cookies.set('auth-token', token, {

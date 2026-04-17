@@ -2,6 +2,7 @@
 
 import Header from './Header'
 import Sidebar from './Sidebar'
+import LicenseBanner from './LicenseBanner'
 import { useState } from 'react'
 
 interface LayoutProps {
@@ -18,6 +19,8 @@ export default function AppLayout({ children }: LayoutProps) {
       
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        {/* License Warning Banner */}
+        <LicenseBanner />
         {/* Header */}
         <Header onMenuClick={() => setMobileOpen(true)} />
         

@@ -16,6 +16,8 @@ interface AuthState {
   user: AuthUser | null
   isLoading: boolean
   isAuthenticated: boolean
+  licenseWarning: boolean
+  licenseDaysLeft: number | null
 }
 
 interface AuthContextType extends AuthState {
@@ -29,6 +31,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 type AuthAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_USER'; payload: AuthUser | null }
+  | { type: 'SET_LICENSE_WARNING'; payload: { warning: boolean; daysLeft: number | null } }
   | { type: 'LOGOUT' }
 
 const authReducer = (state: AuthState, action: AuthAction): AuthState => {
@@ -42,11 +45,19 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         isAuthenticated: !!action.payload,
         isLoading: false,
       }
+    case 'SET_LICENSE_WARNING':
+      return {
+        ...state,
+        licenseWarning: action.payload.warning,
+        licenseDaysLeft: action.payload.daysLeft,
+      }
     case 'LOGOUT':
       return {
         user: null,
         isLoading: false,
         isAuthenticated: false,
+        licenseWarning: false,
+        licenseDaysLeft: null,
       }
     default:
       return state
@@ -57,6 +68,8 @@ const initialState: AuthState = {
   user: null,
   isLoading: true,
   isAuthenticated: false,
+  licenseWarning: false,
+  licenseDaysLeft: null,
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -87,6 +100,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (response.ok) {
         dispatch({ type: 'SET_USER', payload: data.user })
+        // Check for license warning from server
+        if (data.licenseWarning) {
+          dispatch({ type: 'SET_LICENSE_WARNING', payload: { warning: true, daysLeft: data.licenseDaysLeft ?? null } })
+        }
         return { success: true }
       } else {
         return { success: false, error: data.error }
